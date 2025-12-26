@@ -68,12 +68,12 @@ const Side_bar = ({ isOpen, onClose }) => {
                 <p className="text-xs text-slate-500 truncate">Admin Console</p>
               </div>
             </div>
-            <button
+            {/* <button
               aria-label="Close sidebar"
               onClick={onClose}
               className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:text-slate-800">
               <X size={18} />
-            </button>
+            </button> */}
           </div>
 
           <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
