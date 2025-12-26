@@ -1,12 +1,13 @@
-import React from 'react'
-import { Home, PieChart, Settings, Users, X } from 'lucide-react'
+import React from "react";
+import { Home, PieChart, Settings, Users, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const navItems = [
-  { label: 'Dashboard', icon: Home , href: '/info'},
-  { label: 'Users', icon: Users },
-  { label: 'Analytics', icon: PieChart },
-  { label: 'Settings', icon: Settings },
-]
+  { label: "Dashboard", icon: Home, href: "/info" },
+  { label: "Users", icon: Users, href: "/users" },
+  { label: "Analytics", icon: PieChart, href: "/analytics" },
+  { label: "Settings", icon: Settings, href: "/settings" },
+];
 
 const Side_bar = ({ isOpen, onClose }) => {
   return (
@@ -25,31 +26,31 @@ const Side_bar = ({ isOpen, onClose }) => {
 
         <nav className="flex-1 space-y-1 px-3">
           {navItems.map((item) => {
-            const Icon = item.icon
+            const Icon = item.icon;
             return (
-              <button
+              <Link
+                to={item.href} // navigate to the page
                 key={item.label}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]"
-              >
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]">
                 <Icon size={18} />
                 {item.label}
-              </button>
-            )
+              </Link>
+            );
           })}
         </nav>
 
         <div className="border-t border-slate-200 p-4 text-xs text-slate-500">
-          Signed in as <span className="font-semibold text-slate-700">admin</span>
+          Signed in as{" "}
+          <span className="font-semibold text-slate-700">admin</span>
         </div>
       </aside>
 
       {/* Mobile / tablet sidebar (slide-in) */}
       <div
         className={`lg:hidden fixed inset-0 z-40 transform transition-transform duration-200 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        aria-hidden={!isOpen}
-      >
+        aria-hidden={!isOpen}>
         <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
 
         <aside className="relative h-full w-72 max-w-[80vw] border-r border-slate-200 bg-white shadow-xl">
@@ -66,32 +67,31 @@ const Side_bar = ({ isOpen, onClose }) => {
             <button
               aria-label="Close sidebar"
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:text-slate-800"
-            >
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:text-slate-800">
               <X size={18} />
             </button>
           </div>
 
           <nav className="space-y-1 px-3">
             {navItems.map((item) => {
-              const Icon = item.icon
+              const Icon = item.icon;
               return (
-                <button
+                <Link
+                  to={item.href} // navigate to the page
                   key={item.label}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]"
-                  onClick={onClose}
+                  onClick={onClose} // closes mobile sidebar
                 >
                   <Icon size={18} />
                   {item.label}
-                </button>
-              )
+                </Link>
+              );
             })}
           </nav>
         </aside>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Side_bar
-
+export default Side_bar;

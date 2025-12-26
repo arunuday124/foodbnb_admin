@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
-import { Menu, Search, User, X } from 'lucide-react'
+import React, { useState } from "react";
+import { Menu, Search, User, X } from "lucide-react";
 
 const Navbar = ({ showMenuButton, onMenuClick }) => {
-  const [showSearch, setShowSearch] = useState(false)
-  const toggleSearch = () => setShowSearch((prev) => !prev)
+  const [showSearch, setShowSearch] = useState(false);
+  const toggleSearch = () => setShowSearch((prev) => !prev);
 
   return (
     <header className="relative flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-5 shadow-sm">
@@ -13,16 +13,14 @@ const Navbar = ({ showMenuButton, onMenuClick }) => {
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:text-slate-800 lg:hidden"
             aria-label="Open sidebar"
-            onClick={onMenuClick}
-          >
+            onClick={onMenuClick}>
             <Menu size={18} />
           </button>
         )}
         <div
           className={`text-lg font-bold tracking-wide text-slate-900 ${
-            showSearch ? 'hidden sm:block' : ''
-          }`}
-        >
+            showSearch ? "hidden sm:block" : ""
+          }`}>
           Foodbnb
         </div>
       </div>
@@ -36,27 +34,25 @@ const Navbar = ({ showMenuButton, onMenuClick }) => {
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:text-slate-700"
-            aria-label={showSearch ? 'Close search' : 'Open search'}
-            onClick={toggleSearch}
-          >
+            aria-label={showSearch ? "Close search" : "Open search"}
+            onClick={toggleSearch}>
             {showSearch ? <X size={18} /> : <Search size={18} />}
           </button>
 
           <div
             className="overflow-hidden transition-all duration-200 ease-in-out"
             style={{
-              width: showSearch ? 'min(240px, calc(100vw - 150px))' : '0px',
+              width: showSearch ? "min(240px, calc(100vw - 150px))" : "0px",
               opacity: showSearch ? 1 : 0,
-              marginLeft: showSearch ? '10px' : '0px',
-            }}
-          >
+              marginLeft: showSearch ? "10px" : "0px",
+            }}>
             <div className="relative">
               <Search
                 size={22}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
               />
               <input
-                className="h-10 w-[240px] max-w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-3 text-sm text-slate-900 outline-none shadow-inner shadow-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="h-10 w-60 max-w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-3 text-sm text-slate-900 outline-none shadow-inner shadow-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 type="search"
                 placeholder="Search..."
                 aria-label="Search"
@@ -67,14 +63,13 @@ const Navbar = ({ showMenuButton, onMenuClick }) => {
         </div>
 
         <div
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-600 bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md"
-          aria-label="Profile"
-        >
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-600 bg-linear-to-br from-blue-600 to-blue-700 text-white shadow-md"
+          aria-label="Profile">
           <User size={18} strokeWidth={2.2} />
         </div>
       </div>
     </header>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;
