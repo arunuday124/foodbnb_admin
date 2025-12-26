@@ -6,7 +6,7 @@ const Navbar = ({ showMenuButton, onMenuClick }) => {
   const toggleSearch = () => setShowSearch((prev) => !prev);
 
   return (
-    <header className="relative flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-5 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-5 shadow-sm">
       <div className="flex items-center gap-3">
         {showMenuButton && (
           <button
