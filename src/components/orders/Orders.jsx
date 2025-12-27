@@ -234,7 +234,7 @@ const Orders = () => {
               <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <Clock size={16} />
-                  <span>{order.duration}</span>
+                  <span> Duration: {order.duration}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Total</p>
