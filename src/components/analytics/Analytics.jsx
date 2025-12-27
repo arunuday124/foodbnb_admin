@@ -47,16 +47,16 @@ const Analytics = () => {
     { label: "New Customers", value: "142", change: "12.5% vs last month", isPositive: true },
     { label: "Repeat Customers", value: "876", change: "8.3% vs last month", isPositive: true },
     { label: "Customer Retention", value: "86%", change: "4.2% vs last month", isPositive: true },
-    { label: "Avg. Order Value", value: "$36.42", change: "2.1% vs last month", isPositive: false },
+    { label: "Avg. Order Value", value: "₹36.42", change: "2.1% vs last month", isPositive: false },
   ];
 
   const revenueData = [
-    { month: "Jan", revenue: "$12,500", orders: "342 orders", percentage: 55 },
-    { month: "Feb", revenue: "$15,200", orders: "398 orders", percentage: 65 },
-    { month: "Mar", revenue: "$18,900", orders: "456 orders", percentage: 80 },
-    { month: "Apr", revenue: "$16,300", orders: "412 orders", percentage: 70 },
-    { month: "May", revenue: "$21,500", orders: "523 orders", percentage: 90 },
-    { month: "Jun", revenue: "$24,800", orders: "602 orders", percentage: 100 },
+    { month: "Jan", revenue: "₹12,500", orders: "342 orders", percentage: 55 },
+    { month: "Feb", revenue: "₹15,200", orders: "398 orders", percentage: 65 },
+    { month: "Mar", revenue: "₹18,900", orders: "456 orders", percentage: 80 },
+    { month: "Apr", revenue: "₹16,300", orders: "412 orders", percentage: 70 },
+    { month: "May", revenue: "₹21,500", orders: "523 orders", percentage: 90 },
+    { month: "Jun", revenue: "₹24,800", orders: "602 orders", percentage: 100 },
   ];
 
   const orderFrequency = [
@@ -96,7 +96,7 @@ const Analytics = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">Revenue Trend</h2>
               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                <span className="text-green-600 text-lg font-bold">$</span>
+                <span className="text-green-600 text-lg font-bold">₹</span>
               </div>
             </div>
 
@@ -124,7 +124,7 @@ const Analytics = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Total Revenue (6 months)</span>
                 <span className="text-2xl font-bold text-green-600">
-                   <AnimatedNumber value="$109,200" />
+                   <AnimatedNumber value="₹109,200" />
                 </span>
               </div>
             </div>
