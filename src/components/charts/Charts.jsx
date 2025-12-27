@@ -22,8 +22,7 @@ export default function DashboardOverview() {
   // ============================================
   const StatCard = ({ title, value, change, icon: Icon, isNegative }) => {
     return (
-     <div className="bg-stone-200 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
-
+      <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
         {/* Card Header */}
         <div className="flex items-start justify-between mb-4">
           <h3 className="text-black text-sm font-medium">{title}</h3>
@@ -317,7 +316,7 @@ export default function DashboardOverview() {
         {/* Orders and Reviews Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders Box */}
-          <div className="bg-stone-200 from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg">
+          <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg border-2 border-gray-300">
             <h2 className="text-black text-xl font-bold mb-6">Recent Orders</h2>
 
             {/* Scrollable Orders List */}
@@ -349,7 +348,7 @@ export default function DashboardOverview() {
           </div>
 
           {/* Top Reviews Box */}
-          <div className="bg-stone-200 from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl">
+          <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border-2 border-gray-300">
             {/* Header with Filter Dropdown */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-black text-xl font-bold">Top Reviews</h2>
