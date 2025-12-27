@@ -1,11 +1,20 @@
 import React from "react";
-import { Home, PieChart, Settings, Users, X, LogOut, ShoppingBag, PackageOpen } from "lucide-react";
+import {
+  Home,
+  PieChart,
+  Settings,
+  Users,
+  X,
+  LogOut,
+  ShoppingBag,
+  PackageOpen,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 const navItems = [
   { label: "Dashboard", icon: Home, href: "/charts" },
   { label: "Customers", icon: Users, href: "/users" },
-  { label: "Orders", icon: ShoppingBag, href: "/" },
+  { label: "Orders", icon: ShoppingBag, href: "/orders" },
   { label: "Delivery", icon: PackageOpen, href: "/" },
   { label: "Analytics", icon: PieChart, href: "/analytics" },
   { label: "Settings", icon: Settings, href: "/settings" },

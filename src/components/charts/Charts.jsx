@@ -1,52 +1,55 @@
 // DashboardOverview.jsx
-import React from 'react';
-import { 
-  IndianRupee, 
-  Users, 
-  ShoppingCart, 
-  UserPlus, 
-  TrendingUp, 
+import React from "react";
+import {
+  IndianRupee,
+  Users,
+  ShoppingCart,
+  UserPlus,
+  TrendingUp,
   TrendingDown,
-  Star
-} from 'lucide-react';
+  Star,
+} from "lucide-react";
 
 // ============================================
 // Main Dashboard Component
 // ============================================
 export default function DashboardOverview() {
-  
   // State for star filter
-  const [starFilter, setStarFilter] = React.useState('all');
-  
+  const [starFilter, setStarFilter] = React.useState("all");
+
   // ============================================
   // StatCard Component (Nested Inside)
   // ============================================
   const StatCard = ({ title, value, change, icon: Icon, isNegative }) => {
     return (
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+     <div className="bg-stone-200 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+
         {/* Card Header */}
         <div className="flex items-start justify-between mb-4">
-          <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
-          <div className="bg-slate-700/50 p-2 rounded-lg group-hover:bg-slate-700 transition-colors duration-300">
-            <Icon className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-black text-sm font-medium">{title}</h3>
+          <div className="bg-stone-200/50 p-2 rounded-lg group-hover:bg-slate-700 transition-colors duration-300">
+            <Icon className="w-5 h-5 text-black" />
           </div>
         </div>
-        
+
         {/* Card Content */}
         <div className="flex flex-col gap-2">
-          <p className="text-white text-3xl font-bold">{value}</p>
-          
+          <p className="text-black text-3xl font-bold">{value}</p>
+
           {/* Stats Change */}
           <div className="flex items-center gap-2">
             {isNegative ? (
-              <TrendingDown className="w-4 h-4 text-red-400" />
+              <TrendingDown className="w-4 h-4 text-red-800" />
             ) : (
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <TrendingUp className="w-4 h-4 text-emerald-800" />
             )}
-            <span className={`text-sm font-medium ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
+            <span
+              className={`text-sm font-medium ${
+                isNegative ? "text-red-800" : "text-emerald-800"
+              }`}>
               {change}
             </span>
-            <span className="text-slate-500 text-sm">vs last month</span>
+            <span className="text-black text-sm">vs last month</span>
           </div>
         </div>
       </div>
@@ -56,230 +59,237 @@ export default function DashboardOverview() {
   // Dashboard Statistics Data
   const stats = [
     {
-      title: 'Total Revenue',
-      value: '$45,231.89',
-      change: '20.1%',
+      title: "Total Revenue",
+      value: "$45,231.89",
+      change: "20.1%",
       icon: IndianRupee,
-      isNegative: false
+      isNegative: false,
     },
     {
-      title: 'Active Users',
-      value: '2,350',
-      change: '15.3%',
+      title: "Active Users",
+      value: "2,350",
+      change: "15.3%",
       icon: Users,
-      isNegative: false
+      isNegative: false,
     },
     {
-      title: 'Total Orders',
-      value: '1,234',
-      change: '4.2%',
+      title: "Total Orders",
+      value: "1,234",
+      change: "4.2%",
       icon: ShoppingCart,
-      isNegative: true
+      isNegative: true,
     },
     {
-      title: 'New Users',
-      value: '487',
-      change: '8.7%',
+      title: "New Users",
+      value: "487",
+      change: "8.7%",
       icon: UserPlus,
-      isNegative: false
-    }
+      isNegative: false,
+    },
   ];
 
   // Recent Orders Data - Food Delivery App
   const recentOrders = [
     {
       id: 1,
-      customer: 'John Doe',
-      product: 'Margherita Pizza & Garlic Bread',
-      price: '$24.99',
-      status: 'completed'
+      customer: "John Doe",
+      product: "Margherita Pizza & Garlic Bread",
+      price: "$24.99",
+      status: "completed",
     },
     {
       id: 2,
-      customer: 'Jane Smith',
-      product: 'Chicken Biryani with Raita',
-      price: '$18.99',
-      status: 'pending'
+      customer: "Jane Smith",
+      product: "Chicken Biryani with Raita",
+      price: "$18.99",
+      status: "pending",
     },
     {
       id: 3,
-      customer: 'Bob Johnson',
-      product: 'Veggie Burger Combo',
-      price: '$15.49',
-      status: 'completed'
+      customer: "Bob Johnson",
+      product: "Veggie Burger Combo",
+      price: "$15.49",
+      status: "completed",
     },
     {
       id: 4,
-      customer: 'Alice Williams',
-      product: 'Sushi Platter (12 pcs)',
-      price: '$32.99',
-      status: 'processing'
+      customer: "Alice Williams",
+      product: "Sushi Platter (12 pcs)",
+      price: "$32.99",
+      status: "processing",
     },
     {
       id: 5,
-      customer: 'Charlie Brown',
-      product: 'Pasta Carbonara',
-      price: '$16.99',
-      status: 'completed'
+      customer: "Charlie Brown",
+      product: "Pasta Carbonara",
+      price: "$16.99",
+      status: "completed",
     },
     {
       id: 6,
-      customer: 'Diana Prince',
-      product: 'Caesar Salad & Soup',
-      price: '$12.49',
-      status: 'completed'
+      customer: "Diana Prince",
+      product: "Caesar Salad & Soup",
+      price: "$12.49",
+      status: "completed",
     },
     {
       id: 7,
-      customer: 'Ethan Hunt',
-      product: 'Beef Tacos (3 pcs)',
-      price: '$14.99',
-      status: 'pending'
+      customer: "Ethan Hunt",
+      product: "Beef Tacos (3 pcs)",
+      price: "$14.99",
+      status: "pending",
     },
     {
       id: 8,
-      customer: 'Fiona Green',
-      product: 'Pad Thai Noodles',
-      price: '$17.99',
-      status: 'processing'
-    }
+      customer: "Fiona Green",
+      product: "Pad Thai Noodles",
+      price: "$17.99",
+      status: "processing",
+    },
   ];
 
   // Top Products Data - Popular Food Items
   const topProducts = [
     {
       id: 1,
-      name: 'Margherita Pizza',
-      sales: '1234 orders',
-      revenue: '$24,680.00',
-      change: '12.5%',
-      isNegative: false
+      name: "Margherita Pizza",
+      sales: "1234 orders",
+      revenue: "$24,680.00",
+      change: "12.5%",
+      isNegative: false,
     },
     {
       id: 2,
-      name: 'Chicken Biryani',
-      sales: '987 orders',
-      revenue: '$18,753.00',
-      change: '8.3%',
-      isNegative: false
+      name: "Chicken Biryani",
+      sales: "987 orders",
+      revenue: "$18,753.00",
+      change: "8.3%",
+      isNegative: false,
     },
     {
       id: 3,
-      name: 'Veggie Burger',
-      sales: '856 orders',
-      revenue: '$13,254.00',
-      change: '3.2%',
-      isNegative: true
+      name: "Veggie Burger",
+      sales: "856 orders",
+      revenue: "$13,254.00",
+      change: "3.2%",
+      isNegative: true,
     },
     {
       id: 4,
-      name: 'Sushi Platter',
-      sales: '743 orders',
-      revenue: '$24,500.00',
-      change: '15.7%',
-      isNegative: false
+      name: "Sushi Platter",
+      sales: "743 orders",
+      revenue: "$24,500.00",
+      change: "15.7%",
+      isNegative: false,
     },
     {
       id: 5,
-      name: 'Pasta Carbonara',
-      sales: '621 orders',
-      revenue: '$10,546.00',
-      change: '6.4%',
-      isNegative: false
-    }
+      name: "Pasta Carbonara",
+      sales: "621 orders",
+      revenue: "$10,546.00",
+      change: "6.4%",
+      isNegative: false,
+    },
   ];
 
   // Top Reviews Data - Food Delivery Reviews
   const topReviews = [
     {
       id: 1,
-      customer: 'Sarah Johnson',
-      product: 'Margherita Pizza',
+      customer: "Sarah Johnson",
+      product: "Margherita Pizza",
       rating: 5,
-      comment: 'Best pizza in town! Fresh ingredients and delivered hot. Will order again!',
-      date: '2 days ago'
+      comment:
+        "Best pizza in town! Fresh ingredients and delivered hot. Will order again!",
+      date: "2 days ago",
     },
     {
       id: 2,
-      customer: 'Michael Chen',
-      product: 'Chicken Biryani',
+      customer: "Michael Chen",
+      product: "Chicken Biryani",
       rating: 4,
-      comment: 'Authentic taste and generous portions. Slightly spicy but delicious!',
-      date: '3 days ago'
+      comment:
+        "Authentic taste and generous portions. Slightly spicy but delicious!",
+      date: "3 days ago",
     },
     {
       id: 3,
-      customer: 'Emily Davis',
-      product: 'Veggie Burger',
+      customer: "Emily Davis",
+      product: "Veggie Burger",
       rating: 5,
-      comment: 'Amazing veggie patty! Fresh veggies and perfect bun. Highly recommend!',
-      date: '5 days ago'
+      comment:
+        "Amazing veggie patty! Fresh veggies and perfect bun. Highly recommend!",
+      date: "5 days ago",
     },
     {
       id: 4,
-      customer: 'David Wilson',
-      product: 'Sushi Platter',
+      customer: "David Wilson",
+      product: "Sushi Platter",
       rating: 4,
-      comment: 'Fresh fish and well-prepared. Great value for money!',
-      date: '1 week ago'
+      comment: "Fresh fish and well-prepared. Great value for money!",
+      date: "1 week ago",
     },
     {
       id: 5,
-      customer: 'Lisa Anderson',
-      product: 'Pasta Carbonara',
+      customer: "Lisa Anderson",
+      product: "Pasta Carbonara",
       rating: 5,
-      comment: 'Creamy, rich, and perfectly cooked. Restaurant quality at home!',
-      date: '1 week ago'
+      comment:
+        "Creamy, rich, and perfectly cooked. Restaurant quality at home!",
+      date: "1 week ago",
     },
     {
       id: 6,
-      customer: 'Tom Harris',
-      product: 'Caesar Salad',
+      customer: "Tom Harris",
+      product: "Caesar Salad",
       rating: 3,
-      comment: 'Decent salad but dressing was too tangy for my taste. Fresh lettuce though.',
-      date: '2 weeks ago'
+      comment:
+        "Decent salad but dressing was too tangy for my taste. Fresh lettuce though.",
+      date: "2 weeks ago",
     },
     {
       id: 7,
-      customer: 'Rachel Green',
-      product: 'Pad Thai Noodles',
+      customer: "Rachel Green",
+      product: "Pad Thai Noodles",
       rating: 2,
-      comment: 'Not authentic enough. Too sweet and missing traditional flavors.',
-      date: '2 weeks ago'
+      comment:
+        "Not authentic enough. Too sweet and missing traditional flavors.",
+      date: "2 weeks ago",
     },
     {
       id: 8,
-      customer: 'James Bond',
-      product: 'Beef Tacos',
+      customer: "James Bond",
+      product: "Beef Tacos",
       rating: 1,
-      comment: 'Very disappointed. Cold food and missing ingredients. Poor service.',
-      date: '3 weeks ago'
-    }
+      comment:
+        "Very disappointed. Cold food and missing ingredients. Poor service.",
+      date: "3 weeks ago",
+    },
   ];
 
   // Filter reviews based on selected star rating
-  const filteredReviews = starFilter === 'all' 
-    ? topReviews 
-    : topReviews.filter(review => review.rating === parseInt(starFilter));
+  const filteredReviews =
+    starFilter === "all"
+      ? topReviews
+      : topReviews.filter((review) => review.rating === parseInt(starFilter));
 
   // Status badge color helper
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed':
-        return 'text-emerald-400';
-      case 'pending':
-        return 'text-yellow-400';
-      case 'processing':
-        return 'text-blue-400';
+      case "completed":
+        return "text-emerald-400";
+      case "pending":
+        return "text-yellow-400";
+      case "processing":
+        return "text-blue-400";
       default:
-        return 'text-slate-400';
+        return "text-slate-400";
     }
   };
 
   return (
     <div className="min-h-screen bg-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        
         {/* Dashboard Header */}
         <div className="mb-8">
           <h1 className="text-slate-900 text-3xl sm:text-4xl font-bold mb-2">
@@ -306,27 +316,30 @@ export default function DashboardOverview() {
 
         {/* Orders and Reviews Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           {/* Recent Orders Box */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg">
-            <h2 className="text-white text-xl font-bold mb-6">Recent Orders</h2>
-            
+          <div className="bg-stone-200 from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg">
+            <h2 className="text-black text-xl font-bold mb-6">Recent Orders</h2>
+
             {/* Scrollable Orders List */}
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {recentOrders.map((order) => (
-                <div 
+                <div
                   key={order.id}
-                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
-                >
+                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-white font-semibold">{order.customer}</h3>
-                      <p className="text-slate-400 text-sm">{order.product}</p>
+                      <h3 className="text-black font-semibold">
+                        {order.customer}
+                      </h3>
+                      <p className="text-black text-sm">{order.product}</p>
                     </div>
-                    <span className="text-white font-bold">{order.price}</span>
+                    <span className="text-black font-bold">{order.price}</span>
                   </div>
                   <div className="flex justify-end">
-                    <span className={`text-sm font-medium ${getStatusColor(order.status)}`}>
+                    <span
+                      className={`text-sm font-medium ${getStatusColor(
+                        order.status
+                      )}`}>
                       {order.status}
                     </span>
                   </div>
@@ -336,18 +349,17 @@ export default function DashboardOverview() {
           </div>
 
           {/* Top Reviews Box */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg">
+          <div className="bg-stone-200 from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl">
             {/* Header with Filter Dropdown */}
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-white text-xl font-bold">Top Reviews</h2>
-              
+              <h2 className="text-black text-xl font-bold">Top Reviews</h2>
+
               {/* Star Filter Dropdown */}
               <div className="relative">
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-slate-700/50 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-slate-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8"
-                >
+                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8">
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -357,26 +369,38 @@ export default function DashboardOverview() {
                 </select>
                 {/* Custom dropdown arrow */}
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="w-4 h-4 text-black"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
-            
+
             {/* Scrollable Reviews List */}
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {filteredReviews.length > 0 ? (
                 filteredReviews.map((review) => (
-                  <div 
+                  <div
                     key={review.id}
-                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
-                  >
+                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <h3 className="text-white font-semibold">{review.customer}</h3>
-                        <p className="text-slate-400 text-sm mb-2">{review.product}</p>
-                        
+                        <h3 className="text-black font-semibold">
+                          {review.customer}
+                        </h3>
+                        <p className="text-black text-sm mb-2">
+                          {review.product}
+                        </p>
+
                         {/* Star Rating */}
                         <div className="flex gap-1 mb-2">
                           {[...Array(5)].map((_, i) => (
@@ -384,31 +408,33 @@ export default function DashboardOverview() {
                               key={i}
                               className={`w-4 h-4 ${
                                 i < review.rating
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-slate-600'
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-black"
                               }`}
                             />
                           ))}
                         </div>
-                        
-                        <p className="text-slate-300 text-sm mb-2">{review.comment}</p>
+
+                        <p className="text-black text-sm mb-2">
+                          {review.comment}
+                        </p>
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <span className="text-slate-500 text-xs">{review.date}</span>
+                      <span className="text-black text-xs">{review.date}</span>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-slate-400">No reviews found for this rating</p>
+                  <p className="text-black text-sm">
+                    No reviews found for this rating
+                  </p>
                 </div>
               )}
             </div>
           </div>
-
         </div>
-        
       </div>
 
       {/* Custom Scrollbar Styles */}
