@@ -6,6 +6,7 @@ import Side_bar from "./components/Side_bar/Side_bar.jsx";
 import Info from "./components/info/Info.jsx";
 import Setting_page from "./components/setting_page/Setting_page.jsx";
 import Charts from "./components/charts/Charts.jsx";
+import Analytics from "./components/analytics/Analytics.jsx";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -43,6 +44,7 @@ function App() {
           <Routes>
             <Route path="/charts" element={<Charts />} />
             <Route path="/settings" element={<Setting_page />} />
+            <Route path="/analytics" element={<Analytics />} />
           </Routes>
         </main>
       </Router>
