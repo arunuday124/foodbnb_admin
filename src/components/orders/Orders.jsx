@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Clock, UtensilsCrossed  } from "lucide-react";
 
 const Orders = () => {
   const [activeFilter, setActiveFilter] = useState("all");
@@ -11,6 +11,7 @@ const Orders = () => {
       status: "delivered",
       customer: "Sarah Johnson",
       address: "123 Oak Street, Apt 4B, New York, NY 10001",
+      Resturent: "The Spice House",
       items: [
         { name: "2x Chicken Biryani", price: "$15.99" },
         { name: "1x Raita", price: "$3.99" },
@@ -24,6 +25,7 @@ const Orders = () => {
       status: "preparing",
       customer: "Mike Chen",
       address: "456 Maple Ave, Brooklyn, NY 11201",
+      Resturent: "The Pasta Palace",
       items: [
         { name: "1x Pasta Carbonara", price: "$18.5" },
         { name: "1x Caesar Salad", price: "$8.99" },
@@ -37,6 +39,7 @@ const Orders = () => {
       status: "in transit",
       customer: "Emma Wilson",
       address: "789 Pine Road, Queens, NY 11354",
+      Resturent: "Sushi World",
       items: [
         { name: "1x Thai Green Curry", price: "$16.99" },
         { name: "1x Spring Rolls", price: "$6.99" },
@@ -50,6 +53,7 @@ const Orders = () => {
       status: "delivered",
       customer: "James Brown",
       address: "321 Elm Street, Manhattan, NY 10002",
+      Resturent: "Burger Palace",
       items: [
         { name: "1x Burger Combo", price: "$14.99" },
         { name: "1x French Fries", price: "$4.99" },
@@ -63,6 +67,7 @@ const Orders = () => {
       status: "cancelled",
       customer: "Lisa Anderson",
       address: "654 Cedar Lane, Bronx, NY 10451",
+      Resturent: "Vegan Delight",
       items: [{ name: "1x Sushi Platter", price: "$42.99" }],
       duration: "40 mins",
       total: "$48.98",
@@ -210,6 +215,10 @@ const Orders = () => {
                 <div className="flex items-start gap-2 text-sm text-gray-600">
                   <MapPin size={16} className="mt-0.5 shrink-0" />
                   <p className="line-clamp-2">{order.address}</p>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <UtensilsCrossed  size={16} className="mt-0.5 shrink-0" />
+                  <p className="line-clamp-2">{order.Resturent}</p>
                 </div>
               </div>
 
