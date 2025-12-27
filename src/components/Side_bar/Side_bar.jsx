@@ -15,7 +15,7 @@ const navItems = [
   { label: "Dashboard", icon: Home, href: "/charts" },
   { label: "Customers", icon: Users, href: "/customers" },
   { label: "Orders", icon: ShoppingBag, href: "/orders" },
-  { label: "Delivery", icon: PackageOpen, href: "/" },
+  { label: "Delivery", icon: PackageOpen, href: "/delivery" },
   { label: "Analytics", icon: PieChart, href: "/analytics" },
   { label: "Settings", icon: Settings, href: "/settings" },
 ];

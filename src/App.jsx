@@ -9,6 +9,7 @@ import Charts from "./components/charts/Charts.jsx";
 import Analytics from "./components/analytics/Analytics.jsx";
 import Orders from "./components/orders/Orders.jsx";
 import Customer from "./components/customers/Customer.jsx";
+import Delivery from "./components/delivery/Delivery.jsx";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,6 +50,7 @@ function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/customers" element={<Customer />} />
+            <Route path="/delivery" element={<Delivery />} />
 
           </Routes>
         </main>
