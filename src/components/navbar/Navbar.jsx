@@ -23,8 +23,9 @@ const Navbar = ({ showMenuButton, onMenuClick, sidebarOpen }) => {
           className={`text-lg font-bold tracking-wide text-slate-900 ${
             showSearch ? "hidden sm:block" : ""
           }`}>
-          Foodbnb
+          Foodbnb Super Admin
         </div>
+        
       </div>
 
       <div className="flex items-center gap-3.5">
