@@ -1,5 +1,5 @@
 // DashboardOverview.jsx
-import React from "react";
+import React, { use } from "react";
 import {
   IndianRupee,
   Users,
@@ -9,6 +9,10 @@ import {
   TrendingDown,
   Star,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../Firebase";
+import { formatDistanceToNow } from "date-fns";
 
 // ============================================
 // Main Dashboard Component
@@ -16,6 +20,7 @@ import {
 export default function DashboardOverview() {
   // State for star filter
   const [starFilter, setStarFilter] = React.useState("all");
+  const [recentOrders, setRecentOrders] = useState([]);
 
   // ============================================
   // StatCard Component (Nested Inside)
@@ -45,7 +50,8 @@ export default function DashboardOverview() {
             <span
               className={`text-sm font-medium ${
                 isNegative ? "text-red-800" : "text-green-800"
-              }`}>
+              }`}
+            >
               {change}
             </span>
             <span className="text-black text-sm">vs last month</span>
@@ -59,7 +65,7 @@ export default function DashboardOverview() {
   const stats = [
     {
       title: "Total Revenue",
-      value: "$45,231.89",
+      value: "₹45,231.89",
       change: "20.1%",
       icon: IndianRupee,
       isNegative: false,
@@ -79,7 +85,7 @@ export default function DashboardOverview() {
       isNegative: true,
     },
     {
-      title: "New Users",
+      title: "Total Users",
       value: "487",
       change: "8.7%",
       icon: UserPlus,
@@ -88,85 +94,29 @@ export default function DashboardOverview() {
   ];
 
   // Recent Orders Data - Food Delivery App
-  const recentOrders = [
-    {
-      id: 1,
-      customer: "John Doe",
-      product: "Margherita Pizza & Garlic Bread",
-      price: "$24.99",
-      status: "completed",
-    },
-    {
-      id: 2,
-      customer: "Jane Smith",
-      product: "Chicken Biryani with Raita",
-      price: "$18.99",
-      status: "pending",
-    },
-    {
-      id: 3,
-      customer: "Bob Johnson",
-      product: "Veggie Burger Combo",
-      price: "$15.49",
-      status: "completed",
-    },
-    {
-      id: 4,
-      customer: "Alice Williams",
-      product: "Sushi Platter (12 pcs)",
-      price: "$32.99",
-      status: "processing",
-    },
-    {
-      id: 5,
-      customer: "Charlie Brown",
-      product: "Pasta Carbonara",
-      price: "$16.99",
-      status: "completed",
-    },
-    {
-      id: 6,
-      customer: "Diana Prince",
-      product: "Caesar Salad & Soup",
-      price: "$12.49",
-      status: "completed",
-    },
-    {
-      id: 7,
-      customer: "Ethan Hunt",
-      product: "Beef Tacos (3 pcs)",
-      price: "$14.99",
-      status: "pending",
-    },
-    {
-      id: 8,
-      customer: "Fiona Green",
-      product: "Pad Thai Noodles",
-      price: "$17.99",
-      status: "processing",
-    },
-    {
-      id: 9,
-      customer: "Diana Prince",
-      product: "Caesar Salad & Soup",
-      price: "$12.49",
-      status: "completed",
-    },
-    {
-      id: 10,
-      customer: "Ethan Hunt",
-      product: "Beef Tacos (3 pcs)",
-      price: "$14.99",
-      status: "pending",
-    },
-    {
-      id: 11,
-      customer: "Fiona Green",
-      product: "Pad Thai Noodles",
-      price: "$17.99",
-      status: "processing",
-    },
-  ];
+  // const recentOrders = [];
+  useEffect(() => {
+    const fetchOrders = async () => {
+      const recentOrders = await getDocs(collection(db, "Recent_Orders"));
+      setRecentOrders(recentOrders.docs.map((doc) => doc.data()));
+    };
+    fetchOrders();
+  }, []);
+  
+
+  //for time ago format
+  const OrderTime = ({ timestamp }) => {
+    // Convert the Firebase timestamp to a Date first
+    const date = timestamp.toDate();
+    
+    return (
+      <span>
+        {formatDistanceToNow(date, { addSuffix: true })}
+        {/* Outputs: "5 minutes ago" or "2 days ago" */}
+      </span>
+    );
+  };
+  
 
   // Top Products Data - Popular Food Items
   const topProducts = [
@@ -302,6 +252,8 @@ export default function DashboardOverview() {
         return "text-yellow-400";
       case "processing":
         return "text-blue-400";
+      case "canceled":
+        return "text-red-400";
       default:
         return "text-slate-400";
     }
@@ -345,24 +297,29 @@ export default function DashboardOverview() {
               {recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
+                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-black font-semibold">
-                        {order.customer}
-                      </h3>
-                      <p className="text-black text-sm">{order.product}</p>
+                      <h3 className="text-black font-semibold">{order.name}</h3>
+                      <p className="text-black text-sm">
+                        {order.order_details}
+                      </p>
                     </div>
-                    <span className="text-black font-bold">{order.price}</span>
+                    <span className="text-black font-bold">₹{order.price}</span>
                   </div>
                   <div className="flex justify-end">
                     <span
                       className={`text-sm font-medium ${getStatusColor(
                         order.status
-                      )}`}>
+                      )}`}
+                    >
                       {order.status}
                     </span>
                   </div>
+                  <span className="flex font-bold">
+                    {OrderTime({ timestamp: order.order_at })}
+                  </span>
                 </div>
               ))}
             </div>
@@ -379,7 +336,8 @@ export default function DashboardOverview() {
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8">
+                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8"
+                >
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -393,7 +351,8 @@ export default function DashboardOverview() {
                     className="w-4 h-4 text-black"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24">
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -411,7 +370,8 @@ export default function DashboardOverview() {
                 filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold">
