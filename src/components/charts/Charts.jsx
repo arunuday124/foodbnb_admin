@@ -21,6 +21,7 @@ export default function DashboardOverview() {
   // State for star filter
   const [starFilter, setStarFilter] = React.useState("all");
   const [recentOrders, setRecentOrders] = useState([]);
+  const [topReviews, setTopReviews] = useState([]);
 
   // ============================================
   // StatCard Component (Nested Inside)
@@ -94,6 +95,8 @@ export default function DashboardOverview() {
 
   // Recent Orders Data - Food Delivery App
   // const recentOrders = [];
+
+  // Fetch recent orders from Firestore on component mount
   useEffect(() => {
     const fetchOrders = async () => {
       const recentOrders = await getDocs(collection(db, "Recent_Orders"));
@@ -101,6 +104,7 @@ export default function DashboardOverview() {
     };
     fetchOrders();
   }, []);
+
 
   //for time ago format
   const OrderTime = ({ timestamp }) => {
@@ -117,80 +121,42 @@ export default function DashboardOverview() {
 
   // Top Products Data - Popular Food Items
 
+  // Fetch top reviews from Firestore on component mount
+  useEffect(() => {
+    const fetchReviews = async () => {
+      const topReviews = await getDocs(collection(db, "reviews"));
+      setTopReviews(topReviews.docs.map((doc) => doc.data()));
+    };
+    fetchReviews();
+  }, []);
+
+  //for time ago format
+  const Time = ({ timestamp }) => {
+    // Convert the Firebase timestamp to a Date first
+    const date = timestamp.toDate();
+    
+    return (
+      <span>
+        {formatDistanceToNow(date, { addSuffix: true })}
+        {/* Outputs: "5 minutes ago" or "2 days ago" */}
+      </span>
+    );
+  };
+
+  
+
   // Top Reviews Data - Food Delivery Reviews
-  const topReviews = [
-    {
-      id: 1,
-      customer: "Sarah Johnson",
-      product: "Margherita Pizza",
-      rating: 5,
-      comment:
-        "Best pizza in town! Fresh ingredients and delivered hot. Will order again!",
-      date: "2 days ago",
-    },
-    {
-      id: 2,
-      customer: "Michael Chen",
-      product: "Chicken Biryani",
-      rating: 4,
-      comment:
-        "Authentic taste and generous portions. Slightly spicy but delicious!",
-      date: "3 days ago",
-    },
-    {
-      id: 3,
-      customer: "Emily Davis",
-      product: "Veggie Burger",
-      rating: 5,
-      comment:
-        "Amazing veggie patty! Fresh veggies and perfect bun. Highly recommend!",
-      date: "5 days ago",
-    },
-    {
-      id: 4,
-      customer: "David Wilson",
-      product: "Sushi Platter",
-      rating: 4,
-      comment: "Fresh fish and well-prepared. Great value for money!",
-      date: "1 week ago",
-    },
-    {
-      id: 5,
-      customer: "Lisa Anderson",
-      product: "Pasta Carbonara",
-      rating: 5,
-      comment:
-        "Creamy, rich, and perfectly cooked. Restaurant quality at home!",
-      date: "1 week ago",
-    },
-    {
-      id: 6,
-      customer: "Tom Harris",
-      product: "Caesar Salad",
-      rating: 3,
-      comment:
-        "Decent salad but dressing was too tangy for my taste. Fresh lettuce though.",
-      date: "2 weeks ago",
-    },
-    {
-      id: 7,
-      customer: "Rachel Green",
-      product: "Pad Thai Noodles",
-      rating: 2,
-      comment:
-        "Not authentic enough. Too sweet and missing traditional flavors.",
-      date: "2 weeks ago",
-    },
-    {
-      id: 8,
-      customer: "James Bond",
-      product: "Beef Tacos",
-      rating: 1,
-      comment:
-        "Very disappointed. Cold food and missing ingredients. Poor service.",
-      date: "3 weeks ago",
-    },
-  ];
+  // const topReview = [
+  //   {
+  //     id: 1,
+  //     customer: "Sarah Johnson",
+  //     product: "Margherita Pizza",
+  //     rating: 5,
+  //     comment:
+  //       "Best pizza in town! Fresh ingredients and delivered hot. Will order again!",
+  //     date: "2 days ago",
+  //   },
+  // ];
 
   // Filter reviews based on selected star rating
   const filteredReviews =
@@ -202,7 +168,7 @@ export default function DashboardOverview() {
   const getStatusColor = (status) => {
     switch (status) {
       case "completed":
-        return "text-emerald-400";
+        return "text-green-400";
       case "pending":
         return "text-yellow-400";
       case "processing":
@@ -325,7 +291,7 @@ export default function DashboardOverview() {
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold">
-                          {review.customer}
+                          {review.name}
                         </h3>
                         <p className="text-black text-sm mb-2">
                           {review.product}
@@ -351,7 +317,7 @@ export default function DashboardOverview() {
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <span className="text-black text-xs">{review.date}</span>
+                      <span className="text-black text-xs">{Time({ timestamp: review.time })}</span>
                     </div>
                   </div>
                 ))
