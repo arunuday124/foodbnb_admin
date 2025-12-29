@@ -51,7 +51,8 @@ export default function DashboardOverview() {
             <span
               className={`text-sm font-medium ${
                 isNegative ? "text-red-800" : "text-green-800"
-              }`}>
+              }`}
+            >
               {change}
             </span>
             <span className="text-black text-sm">vs last month</span>
@@ -105,7 +106,6 @@ export default function DashboardOverview() {
     fetchOrders();
   }, []);
 
-
   //for time ago format
   const OrderTime = ({ timestamp }) => {
     // Convert the Firebase timestamp to a Date first
@@ -119,8 +119,9 @@ export default function DashboardOverview() {
     );
   };
 
-  // Top Products Data - Popular Food Items
 
+
+  
   // Fetch top reviews from Firestore on component mount
   useEffect(() => {
     const fetchReviews = async () => {
@@ -130,20 +131,30 @@ export default function DashboardOverview() {
     fetchReviews();
   }, []);
 
+
   //for time ago format
   const Time = ({ timestamp }) => {
-    // Convert the Firebase timestamp to a Date first
-    const date = timestamp.toDate();
-    
-    return (
-      <span>
-        {formatDistanceToNow(date, { addSuffix: true })}
-        {/* Outputs: "5 minutes ago" or "2 days ago" */}
-      </span>
-    );
-  };
+    if (!timestamp) {
+      return <span>—</span>; // fallback if missing
+    }
 
-  
+    let date;
+
+    // Firestore Timestamp
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    }
+    // JS Date
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+    // Anything else (string, number, etc.)
+    else {
+      return <span>—</span>;
+    }
+
+    return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>;
+  };
 
   // Top Reviews Data - Food Delivery Reviews
   // const topReview = [
@@ -214,11 +225,12 @@ export default function DashboardOverview() {
             <h2 className="text-black text-xl font-bold mb-6">Recent Orders</h2>
 
             {/* Scrollable Orders List */}
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
               {recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
+                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="text-black font-semibold">{order.name}</h3>
@@ -232,7 +244,8 @@ export default function DashboardOverview() {
                     <span
                       className={`text-sm font-medium ${getStatusColor(
                         order.status
-                      )}`}>
+                      )}`}
+                    >
                       {order.status}
                     </span>
                   </div>
@@ -255,7 +268,8 @@ export default function DashboardOverview() {
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8">
+                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8"
+                >
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -269,7 +283,8 @@ export default function DashboardOverview() {
                     className="w-4 h-4 text-black"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24">
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -282,12 +297,13 @@ export default function DashboardOverview() {
             </div>
 
             {/* Scrollable Reviews List */}
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
               {filteredReviews.length > 0 ? (
                 filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold">
@@ -317,7 +333,9 @@ export default function DashboardOverview() {
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <span className="text-black text-xs">{Time({ timestamp: review.time })}</span>
+                      <span className="text-black text-xs">
+                        {Time({ timestamp: review.time })}
+                      </span>
                     </div>
                   </div>
                 ))
@@ -334,7 +352,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Custom Scrollbar Styles */}
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
