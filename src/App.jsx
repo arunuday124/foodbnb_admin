@@ -45,6 +45,7 @@ function App() {
 
         <main className="fixed top-16 left-0 right-0 bottom-0 lg:left-64 overflow-y-auto">
           <Routes>
+            <Route path="/" element={<Charts />} />
             <Route path="/charts" element={<Charts />} />
             <Route path="/settings" element={<Setting_page />} />
             <Route path="/analytics" element={<Analytics />} />
