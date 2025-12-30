@@ -1,93 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, ShoppingBag, Mail, Phone, MapPin, IdCard } from "lucide-react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../Firebase";
 
 const Customer = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample customer data
-  const customers = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      initials: "SJ",
-      color: "bg-orange-500",
-      email: "sarahj@email.com",
-      phone: "+1 234-567-8901",
-      address: "123 Oak Street, Apt 4B, New York, NY 10001",
-      orders: 45,
-      spent: 1286,
-      lastOrder: "2 hours ago",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Mike Chen",
-      initials: "MC",
-      color: "bg-blue-500",
-      email: "mchen@email.com",
-      phone: "+1 234-567-8902",
-      address: "456 Maple Ave, Brooklyn, NY 11201",
-      orders: 32,
-      spent: 892,
-      lastOrder: "1 day ago",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Emma Wilson",
-      initials: "EW",
-      color: "bg-green-500",
-      email: "emma.w@email.com",
-      phone: "+1 234-567-8903",
-      address: "789 Pine Road, Queens, NY 11354",
-      orders: 28,
-      spent: 757,
-      lastOrder: "3 days ago",
-      status: "active",
-    },
-    {
-      id: 4,
-      name: "James Brown",
-      initials: "JB",
-      color: "bg-purple-500",
-      email: "jbrown@email.com",
-      phone: "+1 234-567-8904",
-      address: "321 Elm Street, Manhattan, NY 10002",
-      orders: 52,
-      spent: 1543,
-      lastOrder: "5 hours ago",
-      status: "active",
-    },
-    {
-      id: 5,
-      name: "Daniel Brown",
-      initials: "DB",
-      color: "bg-purple-500",
-      email: "dbrown@email.com",
-      phone: "+1 234-567-8905",
-      address: "321 Elm Street, Manhattan, NY 10002",
-      orders: 52,
-      spent: 1543,
-      lastOrder: "5 hours ago",
-      status: "active",
-    },
-  ];
+  // Fetch data from Firestore
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const customerCollection = collection(db, "Users");
+        const customerSnapshot = await getDocs(customerCollection);
+        const customerList = customerSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setCustomers(customerList);
+        // console.log("Fetched customers:", customerList);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   // Calculate stats
   const totalCustomers = customers.length;
-  const activeCustomers = customers.filter((c) => c.status === "active").length;
-  const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
-  const totalRevenue = customers.reduce((sum, c) => sum + c.spent, 0);
+  // const activeCustomers = customers.filter((c) => c.status).length;
+  // const totalOrders = customers.reduce((sum, c) => sum + (c. || 0), 0);
+  // const totalRevenue = customers.reduce((sum, c) => sum + (c.spent || 0), 0);
 
   // Filter customers based on search query
   const query = searchQuery.trim().toLowerCase();
-
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.id.toString().includes(query)
+      customer.name?.toLowerCase().includes(query) ||
+      customer.email?.toLowerCase().includes(query) ||
+      customer.ph_no?.toString().includes(query)
+    // customer.id.toString().includes(query)
   );
+
+  // console.log("filered customer" + filteredCustomers);
+
+  if (loading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <p className="text-slate-600">Loading customers...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-slate-50 p-6">
@@ -120,7 +87,7 @@ const Customer = () => {
             <div>
               <p className="text-sm text-slate-600 mb-1">Active Customers</p>
               <p className="text-3xl font-bold text-slate-800">
-                {activeCustomers}
+                {/* {activeCustomers} */}
               </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
@@ -133,7 +100,7 @@ const Customer = () => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Orders</p>
-              <p className="text-3xl font-bold text-slate-800">{totalOrders}</p>
+              {/* <p className="text-3xl font-bold text-slate-800">{totalOrders}</p> */}
             </div>
             <div className="p-3 bg-orange-50 rounded-lg">
               <ShoppingBag className="text-orange-600" size={24} />
@@ -146,7 +113,7 @@ const Customer = () => {
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
               <p className="text-3xl font-bold text-slate-800">
-                ${totalRevenue}
+                {/* ${totalRevenue} */}
               </p>
             </div>
             <div className="p-3 bg-purple-50 rounded-lg">
@@ -184,8 +151,14 @@ const Customer = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div
-                    className={`${customer.color} w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
-                    {customer.initials}
+                    className={`${
+                      customer.color || "bg-gray-500"
+                    } w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
+                    {customer.name
+                      ?.split(" ")
+                      .map((initial) => initial[0])
+                      .join("")
+                      .toUpperCase()}
                   </div>
 
                   <div>
@@ -202,7 +175,7 @@ const Customer = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
                       <Phone size={14} />
-                      <span>{customer.phone}</span>
+                      <span>{customer.ph_no}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
                       <MapPin size={14} />
@@ -211,7 +184,7 @@ const Customer = () => {
                   </div>
                 </div>
                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                  {customer.status}
+                  {customer.status || "active"}
                 </span>
               </div>
 
@@ -220,19 +193,19 @@ const Customer = () => {
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Orders</p>
                   <p className="text-lg font-bold text-slate-800">
-                    {customer.orders}
+                    {customer.orders || 0}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Spent</p>
                   <p className="text-lg font-bold text-slate-800">
-                    ${customer.spent}
+                    ${customer.spent || 0}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Last Order</p>
                   <p className="text-lg font-bold text-slate-800">
-                    {customer.lastOrder}
+                    {customer.lastOrder || "-"}
                   </p>
                 </div>
               </div>

@@ -9,7 +9,7 @@ import {
   ShoppingBag,
   PackageOpen,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const navItems = [
   { label: "Dashboard", icon: Home, href: "/charts" },
@@ -21,6 +21,13 @@ const navItems = [
 ];
 
 const Side_bar = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Just redirect to login - no auth removal needed
+    navigate("/login");
+  };
+
   return (
     <>
       {/* Desktop sidebar (always open on large screens) */}
@@ -40,7 +47,7 @@ const Side_bar = ({ isOpen, onClose }) => {
             const Icon = item.icon;
             return (
               <Link
-                to={item.href} // navigate to the page
+                to={item.href}
                 key={item.label}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]">
                 <Icon size={18} />
@@ -51,7 +58,9 @@ const Side_bar = ({ isOpen, onClose }) => {
         </nav>
 
         <div className="shrink-0 border-t border-slate-200 p-4 text-xs text-slate-500">
-          <button className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[15px] font-bold text-slate-700 transition hover:bg-slate-100 active:scale-[0.99] cursor-pointer hover:bg-slate-300">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[15px] font-bold text-slate-700 transition hover:bg-slate-100 active:scale-[0.99] cursor-pointer">
             Logout
             <LogOut size={18} />
           </button>
@@ -79,12 +88,6 @@ const Side_bar = ({ isOpen, onClose }) => {
                 <p className="text-xs text-slate-500 truncate">Admin Console</p>
               </div>
             </div>
-            {/* <button
-              aria-label="Close sidebar"
-              onClick={onClose}
-              className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:text-slate-800">
-              <X size={18} />
-            </button> */}
           </div>
 
           <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
@@ -92,19 +95,21 @@ const Side_bar = ({ isOpen, onClose }) => {
               const Icon = item.icon;
               return (
                 <Link
-                  to={item.href} // navigate to the page
+                  to={item.href}
                   key={item.label}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]"
-                  onClick={onClose} // closes mobile sidebar
-                >
+                  onClick={onClose}>
                   <Icon size={18} />
                   {item.label}
                 </Link>
               );
             })}
           </nav>
+
           <div className="shrink-0 border-t border-slate-200 p-4 text-xs text-slate-500">
-            <button className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 active:scale-[0.99]">
               Logout
               <LogOut size={18} />
             </button>

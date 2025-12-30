@@ -1,5 +1,5 @@
 // DashboardOverview.jsx
-import React, { use } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IndianRupee,
   Users,
@@ -9,7 +9,7 @@ import {
   TrendingDown,
   Star,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
@@ -105,7 +105,6 @@ export default function DashboardOverview() {
     fetchOrders();
   }, []);
 
-
   //for time ago format
   const OrderTime = ({ timestamp }) => {
     // Convert the Firebase timestamp to a Date first
@@ -134,7 +133,7 @@ export default function DashboardOverview() {
   const Time = ({ timestamp }) => {
     // Convert the Firebase timestamp to a Date first
     const date = timestamp.toDate();
-    
+
     return (
       <span>
         {formatDistanceToNow(date, { addSuffix: true })}
@@ -142,8 +141,6 @@ export default function DashboardOverview() {
       </span>
     );
   };
-
-  
 
   // Top Reviews Data - Food Delivery Reviews
   // const topReview = [
@@ -214,7 +211,7 @@ export default function DashboardOverview() {
             <h2 className="text-black text-xl font-bold mb-6">Recent Orders</h2>
 
             {/* Scrollable Orders List */}
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
               {recentOrders.map((order) => (
                 <div
                   key={order.id}
@@ -282,7 +279,7 @@ export default function DashboardOverview() {
             </div>
 
             {/* Scrollable Reviews List */}
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
               {filteredReviews.length > 0 ? (
                 filteredReviews.map((review) => (
                   <div
@@ -317,7 +314,9 @@ export default function DashboardOverview() {
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <span className="text-black text-xs">{Time({ timestamp: review.time })}</span>
+                      <span className="text-black text-xs">
+                        {Time({ timestamp: review.time })}
+                      </span>
                     </div>
                   </div>
                 ))
