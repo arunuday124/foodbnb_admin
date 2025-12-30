@@ -71,7 +71,7 @@ const Delivery = () => {
 
   const activeOrders =
     drivers && drivers.length > 0
-      ? drivers.reduce((sum, d) => sum + d.currentOrders, 0)
+      ? drivers.reduce((sum, d) => sum + d.no_of_delivery, 0)
       : 0;
 
   return (
