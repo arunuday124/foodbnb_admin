@@ -1,77 +1,40 @@
 import React, { useState } from "react";
 import { Search, ShoppingBag, Mail, Phone, MapPin, IdCard } from "lucide-react";
+import { useEffect, } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../Firebase";
 
 const Customer = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [customers, setCustomers] = useState([]);
+
+
+  // Fetch customer data from Firestore
+  
 
   // Sample customer data
-  const customers = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      initials: "SJ",
-      color: "bg-orange-500",
-      email: "sarahj@email.com",
-      phone: "+1 234-567-8901",
-      address: "123 Oak Street, Apt 4B, New York, NY 10001",
-      orders: 45,
-      spent: 1286,
-      lastOrder: "2 hours ago",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Mike Chen",
-      initials: "MC",
-      color: "bg-blue-500",
-      email: "mchen@email.com",
-      phone: "+1 234-567-8902",
-      address: "456 Maple Ave, Brooklyn, NY 11201",
-      orders: 32,
-      spent: 892,
-      lastOrder: "1 day ago",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Emma Wilson",
-      initials: "EW",
-      color: "bg-green-500",
-      email: "emma.w@email.com",
-      phone: "+1 234-567-8903",
-      address: "789 Pine Road, Queens, NY 11354",
-      orders: 28,
-      spent: 757,
-      lastOrder: "3 days ago",
-      status: "active",
-    },
-    {
-      id: 4,
-      name: "James Brown",
-      initials: "JB",
-      color: "bg-purple-500",
-      email: "jbrown@email.com",
-      phone: "+1 234-567-8904",
-      address: "321 Elm Street, Manhattan, NY 10002",
-      orders: 52,
-      spent: 1543,
-      lastOrder: "5 hours ago",
-      status: "active",
-    },
-    {
-      id: 5,
-      name: "Daniel Brown",
-      initials: "DB",
-      color: "bg-purple-500",
-      email: "dbrown@email.com",
-      phone: "+1 234-567-8905",
-      address: "321 Elm Street, Manhattan, NY 10002",
-      orders: 52,
-      spent: 1543,
-      lastOrder: "5 hours ago",
-      status: "active",
-    },
-  ];
+  // const customers = [
+  //   {
+  //     id: 1,
+  //     name: "Sarah Johnson",
+  //     initials: "SJ",
+  //     color: "bg-orange-500",
+  //     email: "sarahj@email.com",
+  //     phone: "+1 234-567-8901",
+  //     address: "123 Oak Street, Apt 4B, New York, NY 10001",
+  //     orders: 45,
+  //     spent: 1286,
+  //     lastOrder: "2 hours ago",
+  //     status: "active",
+  //   },
+  // ];
+
+  // Fetch customer data from Firestore
+  
+
+
+
+
 
   // Calculate stats
   const totalCustomers = customers.length;
@@ -146,7 +109,7 @@ const Customer = () => {
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
               <p className="text-3xl font-bold text-slate-800">
-                ${totalRevenue}
+                ₹{totalRevenue}
               </p>
             </div>
             <div className="p-3 bg-purple-50 rounded-lg">
