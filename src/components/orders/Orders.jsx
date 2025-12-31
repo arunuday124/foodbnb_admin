@@ -1,11 +1,42 @@
 import { useState } from "react";
 import { MapPin, Clock, UtensilsCrossed } from "lucide-react";
+import { MapPin, Clock, UtensilsCrossed } from "lucide-react";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../Firebase";
+import { formatDistanceToNow } from "date-fns";
 
 const Orders = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   // CHANGED: Removed allOrders array completely
   const [allOrders, setAllOrders] = useState([]);
 
+  //order data fetching from firebase
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "orders"));
+        const ordersList = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Convert Firebase Timestamp to readable string
+            time: data.time?.toDate
+              ? formatDistanceToNow(data.time.toDate(), { addSuffix: true })
+              : "N/A",
+            // Add default status if missing
+            status: data.order_status || "preparing",
+          };
+        });
+        setAllOrders(ordersList);
+        console.log("Fetched orders:", ordersList);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      }
+    };
+    fetchOrders();
+  }, []);
   const getStatusColor = (status) => {
     switch (status) {
       case "delivered":
@@ -36,6 +67,17 @@ const Orders = () => {
   const getFilterCount = (status) => {
     if (status === "all") return allOrders.length;
     return allOrders.filter((order) => order.status === status).length;
+  };
+
+  const calculateOrderTotal = (items) => {
+    if (!items || !Array.isArray(items)) return 0;
+    return items
+      .reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        const quantity = item.quantity || 1;
+        return sum + price * quantity;
+      }, 0)
+      .toFixed(2);
   };
 
   return (
@@ -128,7 +170,7 @@ const Orders = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">
-                      {order.id}
+                      id : {order.id}
                     </h3>
                     <p className="text-xs text-gray-500">{order.time}</p>
                   </div>
@@ -143,7 +185,7 @@ const Orders = () => {
                 {/* Customer Info */}
                 <div className="mb-4">
                   <p className="font-semibold text-gray-900 mb-1">
-                    {order.customer}
+                    {order.name}
                   </p>
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <MapPin size={16} className="mt-0.5 shrink-0" />
@@ -151,7 +193,7 @@ const Orders = () => {
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
-                    <p className="line-clamp-2">{order.Resturent}</p>
+                    <p className="line-clamp-2">{order.resturent}</p>
                   </div>
                 </div>
 
@@ -163,9 +205,11 @@ const Orders = () => {
                   <div className="space-y-1">
                     {order.items.map((item, index) => (
                       <div key={index} className="flex justify-between text-sm">
-                        <span className="text-gray-700">{item.name}</span>
+                        <span className="text-gray-700">
+                          {item.name} : {item.qnt}X
+                        </span>
                         <span className="font-medium text-gray-900">
-                          {item.price}
+                          ₹{item.price}
                         </span>
                       </div>
                     ))}
@@ -181,15 +225,15 @@ const Orders = () => {
                   <div className="text-right">
                     <p className="text-xs text-gray-500">Total</p>
                     <p className="text-lg font-bold text-gray-900">
-                      {order.total}
+                      ₹{calculateOrderTotal(order.items)}
                     </p>
                   </div>
                 </div>
 
                 {/* View Details Button */}
-                <button className="w-full mt-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
+                {/* <button className="w-full mt-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
                   • View Details
-                </button>
+                </button> */}
               </div>
             ))}
           </div>
