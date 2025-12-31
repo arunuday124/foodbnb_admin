@@ -1,5 +1,5 @@
 // DashboardOverview.jsx
-import React, { use } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IndianRupee,
   Users,
@@ -9,7 +9,7 @@ import {
   TrendingDown,
   Star,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
@@ -51,8 +51,7 @@ export default function DashboardOverview() {
             <span
               className={`text-sm font-medium ${
                 isNegative ? "text-red-800" : "text-green-800"
-              }`}
-            >
+              }`}>
               {change}
             </span>
             <span className="text-black text-sm">vs last month</span>
@@ -94,9 +93,6 @@ export default function DashboardOverview() {
     },
   ];
 
-
-
-  
   // Fetch recent orders from Firestore on component mount
   useEffect(() => {
     const fetchOrders = async () => {
@@ -130,26 +126,15 @@ export default function DashboardOverview() {
 
   //for time ago format
   const Time = ({ timestamp }) => {
-    if (!timestamp) {
-      return <span>—</span>; // fallback if missing
-    }
+    // Convert the Firebase timestamp to a Date first
+    const date = timestamp.toDate();
 
-    let date;
-
-    // Firestore Timestamp
-    if (timestamp.toDate) {
-      date = timestamp.toDate();
-    }
-    // JS Date
-    else if (timestamp instanceof Date) {
-      date = timestamp;
-    }
-    // Anything else (string, number, etc.)
-    else {
-      return <span>—</span>;
-    }
-
-    return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>;
+    return (
+      <span>
+        {formatDistanceToNow(date, { addSuffix: true })}
+        {/* Outputs: "5 minutes ago" or "2 days ago" */}
+      </span>
+    );
   };
 
   // Top Reviews Data - Food Delivery Reviews
@@ -225,8 +210,7 @@ export default function DashboardOverview() {
               {recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
-                >
+                  className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="text-black font-semibold">{order.name}</h3>
@@ -240,8 +224,7 @@ export default function DashboardOverview() {
                     <span
                       className={`text-sm font-medium ${getStatusColor(
                         order.status
-                      )}`}
-                    >
+                      )}`}>
                       {order.status}
                     </span>
                   </div>
@@ -264,8 +247,7 @@ export default function DashboardOverview() {
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none  appearance-none pr-8"
-                >
+                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none  appearance-none pr-8">
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -279,8 +261,7 @@ export default function DashboardOverview() {
                     className="w-4 h-4 text-black"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                    viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -298,8 +279,7 @@ export default function DashboardOverview() {
                 filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200"
-                  >
+                    className="border-b border-slate-700 pb-4 last:border-b-0 hover:bg-slate-700/30 rounded-lg p-3 transition-colors duration-200">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold">

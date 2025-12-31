@@ -6,38 +6,17 @@ import {
   MapPinned,
   Zap,
   Award,
-  IdCard,
+  CreditCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
-import { formatDistanceToNow } from "date-fns";
 
 const Delivery = () => {
-  // Sample driver data
-  // const drivers = [
-  //   {
-  //     id: 1,
-  //     name: "Sarah Lee",
-  //     initials: "SL",
-  //     color: "bg-purple-500",
-  //     vehicle: "Bicycle",
-  //     rating: 4.6,
-  //     reviews: 256,
-  //     email: "sarah.l@homecook.com",
-  //     driverId: "DRV-2024-001",
-  //     phone: "+1 234-567-9004",
-  //     location: "Upper East Side",
-  //     deliveries: 256,
-  //     onTimeRate: 92,
-  //     status: "verified",
-  //     currentOrders: 0,
-  //   },
-  // ];
-
   const [drivers, setDrivers] = useState([]);
+  const [preparingOrders, setPreparingOrders] = useState(0);
 
-  // Initialize drivers as empty (or from Firestore)
+  // Fetch drivers from Firestore
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
@@ -54,25 +33,41 @@ const Delivery = () => {
     fetchDrivers();
   }, []);
 
+  // Fetch orders and count preparing status
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "orders"));
+        const preparingCount = querySnapshot.docs.filter(
+          (doc) => doc.data().order_status === "preparing"
+        ).length;
+        setPreparingOrders(preparingCount);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      }
+    };
+    fetchOrders();
+  }, []);
+
   // Calculate stats
   const activeDrivers =
     drivers && drivers.length > 0 ? drivers.filter((d) => d.status).length : 0;
 
   const totalDeliveries =
     drivers && drivers.length > 0
-      ? drivers.reduce((sum, d) => sum + d.no_of_delivery, 0)
+      ? drivers.reduce((sum, d) => sum + (d.no_of_delivery || 0), 0)
       : 0;
-  const avgRating = 4.5;
-  // drivers && drivers.length > 0
-  //   ? (
-  //       drivers.reduce((sum, d) => sum + d.rating, 0) / drivers.length
-  //     ).toFixed(1)
-  //   : "0.0";
 
-  const activeOrders =
+  // Calculate average rating from database
+  const avgRating =
     drivers && drivers.length > 0
-      ? drivers.reduce((sum, d) => sum + d.no_of_delivery, 0)
-      : 0;
+      ? (
+          drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length
+        ).toFixed(1)
+      : "0.0";
+
+  // Active orders count comes from preparing orders in orders collection
+  const activeOrders = preparingOrders;
 
   return (
     <div className="min-h-full bg-slate-50 p-6">
@@ -157,14 +152,14 @@ const Delivery = () => {
           drivers.map((driver) => (
             <div
               key={driver.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6"
-            >
+              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               {/* Driver Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`${driver.color} w-14 h-14 rounded-full flex items-center justify-center text-black text-lg font-bold shadow-md`}
-                  >
+                    className={`${
+                      driver.color || "bg-purple-500"
+                    } w-14 h-14 rounded-full flex items-center justify-center text-black text-lg font-bold shadow-md`}>
                     {driver.name
                       .split(" ")
                       .map((n) => n[0])
@@ -185,22 +180,23 @@ const Delivery = () => {
                     driver.status
                       ? "bg-green-100 text-green-700"
                       : "bg-slate-100 text-red-600"
-                  } text-xs font-medium rounded-full`}
-                >
+                  } text-xs font-medium rounded-full`}>
                   {driver.status ? "Active" : "Inactive"}
                 </span>
               </div>
 
-              {/* Rating */}
-              {/* <div className="flex items-center gap-1 mb-4">
-                <Star className="text-yellow-500 fill-yellow-500" size={16} />
-                <span className="font-semibold text-slate-800">
-                  {driver.rating}
-                </span>
-                <span className="text-sm text-slate-600">
-                  ({driver.reviews})
-                </span>
-              </div> */}
+              {/* Rating Section */}
+              {driver.rating && (
+                <div className="flex items-center gap-1 mb-4">
+                  <Star className="text-yellow-500 fill-yellow-500" size={16} />
+                  <span className="font-semibold text-slate-800">
+                    {driver.rating.toFixed(1)}
+                  </span>
+                  {/* <span className="text-sm text-slate-600">
+                    ({driver.reviews || 0} reviews)
+                  </span> */}
+                </div>
+              )}
 
               {/* Contact Info */}
               <div className="space-y-2 mb-4">
@@ -209,7 +205,7 @@ const Delivery = () => {
                   <span>{driver.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <IdCard size={14} />
+                  <CreditCard size={14} />
                   <span>{driver.license_plate}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -222,22 +218,6 @@ const Delivery = () => {
                 </div>
               </div>
 
-              {/* Stats */}
-              {/* <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border-slate-200">
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Deliveries</p>
-                  <p className="text-lg font-bold text-slate-800">
-                    {driver.deliveries}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">On-Time Rate</p>
-                  <p className="text-lg font-bold text-green-600">
-                    {driver.onTimeRate}%
-                  </p>
-                </div>
-              </div> */}
-
               {/* Current Orders Alert */}
               {driver.currentOrders > 0 && (
                 <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
@@ -247,11 +227,6 @@ const Delivery = () => {
                   </p>
                 </div>
               )}
-
-              {/* View Details Button */}
-              {/* <button className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors active:scale-[0.99]">
-              View Details
-            </button> */}
             </div>
           ))
         )}

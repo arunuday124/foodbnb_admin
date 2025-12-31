@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, ShoppingBag, Mail, Phone, MapPin, IdCard } from "lucide-react";
-import { useEffect, } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
 
@@ -8,33 +7,58 @@ const Customer = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [customers, setCustomers] = useState([]);
 
-
   // Fetch customer data from Firestore
-  
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        console.log("Fetching customers from Firestore...");
+        const querySnapshot = await getDocs(collection(db, "Users"));
+        console.log("Total documents found:", querySnapshot.docs.length);
 
-  // Sample customer data
-  // const customers = [
-  //   {
-  //     id: 1,
-  //     name: "Sarah Johnson",
-  //     initials: "SJ",
-  //     color: "bg-orange-500",
-  //     email: "sarahj@email.com",
-  //     phone: "+1 234-567-8901",
-  //     address: "123 Oak Street, Apt 4B, New York, NY 10001",
-  //     orders: 45,
-  //     spent: 1286,
-  //     lastOrder: "2 hours ago",
-  //     status: "active",
-  //   },
-  // ];
+        const customerData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          console.log("Document data:", data);
 
-  // Fetch customer data from Firestore
-  
+          const nameParts = data.name?.split(" ") || ["U"];
+          const initials =
+            nameParts.length > 1
+              ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+              : nameParts[0][0].toUpperCase();
 
+          const colors = [
+            "bg-orange-500",
+            "bg-blue-500",
+            "bg-green-500",
+            "bg-purple-500",
+            "bg-pink-500",
+            "bg-indigo-500",
+          ];
+          const color = colors[Math.floor(Math.random() * colors.length)];
 
+          return {
+            id: doc.id,
+            name: data.name || "Unknown",
+            initials: initials,
+            color: color,
+            email: data.email || "N/A",
+            phone: data.ph_no || "N/A",
+            address: data.address || "N/A",
+            orders: data.total_orders,
+            spent: 0,
+            lastOrder: "N/A",
+            status: "active",
+          };
+        });
 
+        console.log("Customer data mapped:", customerData);
+        setCustomers(customerData);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      }
+    };
 
+    fetchCustomers();
+  }, []);
 
   // Calculate stats
   const totalCustomers = customers.length;
@@ -201,9 +225,9 @@ const Customer = () => {
               </div>
 
               {/* View Details Button */}
-              <button className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors active:scale-[0.99]">
+              {/* <button className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors active:scale-[0.99]">
                 View Details
-              </button>
+              </button> */}
             </div>
           ))
         ) : (

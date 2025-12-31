@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MapPin, Clock, UtensilsCrossed } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -98,8 +99,7 @@ const Orders = () => {
               className="w-4 h-4"
               fill="none"
               stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+              viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -116,8 +116,7 @@ const Orders = () => {
                 activeFilter === "all"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
+              }`}>
               All Orders ({getFilterCount("all")})
             </button>
             <button
@@ -126,8 +125,7 @@ const Orders = () => {
                 activeFilter === "preparing"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
+              }`}>
               Preparing ({getFilterCount("preparing")})
             </button>
             <button
@@ -136,8 +134,7 @@ const Orders = () => {
                 activeFilter === "in transit"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
+              }`}>
               In Transit ({getFilterCount("in transit")})
             </button>
             <button
@@ -146,8 +143,7 @@ const Orders = () => {
                 activeFilter === "delivered"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
+              }`}>
               Delivered ({getFilterCount("delivered")})
             </button>
             <button
@@ -156,8 +152,7 @@ const Orders = () => {
                 activeFilter === "cancelled"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
+              }`}>
               Cancelled ({getFilterCount("cancelled")})
             </button>
           </div>
@@ -168,10 +163,8 @@ const Orders = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredOrders.map((order) => (
               <div
-                
                 key={order.id}
-                className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow"
-              >
+                className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow">
                 {/* Order Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -183,8 +176,7 @@ const Orders = () => {
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
                       order.status
-                    )}`}
-                  >
+                    )}`}>
                     {getStatusLabel(order.status)}
                   </span>
                 </div>
@@ -212,7 +204,9 @@ const Orders = () => {
                   <div className="space-y-1">
                     {order.items.map((item, index) => (
                       <div key={index} className="flex justify-between text-sm">
-                        <span className="text-gray-700">{item.name} : {item.qnt}X</span>
+                        <span className="text-gray-700">
+                          {item.name} : {item.qnt}X
+                        </span>
                         <span className="font-medium text-gray-900">
                           ₹{item.price}
                         </span>
