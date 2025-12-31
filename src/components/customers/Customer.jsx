@@ -6,24 +6,54 @@ import { db } from "../../Firebase";
 const Customer = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch data from Firestore
+  // Fetch customer data from Firestore
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const customerCollection = collection(db, "Users");
-        const customerSnapshot = await getDocs(customerCollection);
-        const customerList = customerSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCustomers(customerList);
-        // console.log("Fetched customers:", customerList);
+        console.log("Fetching customers from Firestore...");
+        const querySnapshot = await getDocs(collection(db, "Users"));
+        console.log("Total documents found:", querySnapshot.docs.length);
+
+        const customerData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          console.log("Document data:", data);
+
+          const nameParts = data.name?.split(" ") || ["U"];
+          const initials =
+            nameParts.length > 1
+              ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+              : nameParts[0][0].toUpperCase();
+
+          const colors = [
+            "bg-orange-500",
+            "bg-blue-500",
+            "bg-green-500",
+            "bg-purple-500",
+            "bg-pink-500",
+            "bg-indigo-500",
+          ];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+
+          return {
+            id: doc.id,
+            name: data.name || "Unknown",
+            initials: initials,
+            color: color,
+            email: data.email || "N/A",
+            phone: data.ph_no || "N/A",
+            address: data.address || "N/A",
+            orders: data.total_orders,
+            spent: 0,
+            lastOrder: "N/A",
+            status: "active",
+          };
+        });
+
+        console.log("Customer data mapped:", customerData);
+        setCustomers(customerData);
       } catch (error) {
         console.error("Error fetching customers:", error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -32,29 +62,19 @@ const Customer = () => {
 
   // Calculate stats
   const totalCustomers = customers.length;
-  // const activeCustomers = customers.filter((c) => c.status).length;
-  // const totalOrders = customers.reduce((sum, c) => sum + (c. || 0), 0);
-  // const totalRevenue = customers.reduce((sum, c) => sum + (c.spent || 0), 0);
+  const activeCustomers = customers.filter((c) => c.status === "active").length;
+  const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
+  const totalRevenue = customers.reduce((sum, c) => sum + c.spent, 0);
 
   // Filter customers based on search query
   const query = searchQuery.trim().toLowerCase();
+
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name?.toLowerCase().includes(query) ||
-      customer.email?.toLowerCase().includes(query) ||
-      customer.ph_no?.toString().includes(query)
-    // customer.id.toString().includes(query)
+      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.id.toString().includes(query)
   );
-
-  // console.log("filered customer" + filteredCustomers);
-
-  if (loading) {
-    return (
-      <div className="min-h-full flex items-center justify-center">
-        <p className="text-slate-600">Loading customers...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-full bg-slate-50 p-6">
@@ -87,7 +107,7 @@ const Customer = () => {
             <div>
               <p className="text-sm text-slate-600 mb-1">Active Customers</p>
               <p className="text-3xl font-bold text-slate-800">
-                {/* {activeCustomers} */}
+                {activeCustomers}
               </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
@@ -100,7 +120,7 @@ const Customer = () => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Orders</p>
-              {/* <p className="text-3xl font-bold text-slate-800">{totalOrders}</p> */}
+              <p className="text-3xl font-bold text-slate-800">{totalOrders}</p>
             </div>
             <div className="p-3 bg-orange-50 rounded-lg">
               <ShoppingBag className="text-orange-600" size={24} />
@@ -113,7 +133,7 @@ const Customer = () => {
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
               <p className="text-3xl font-bold text-slate-800">
-                {/* ${totalRevenue} */}
+                ₹{totalRevenue}
               </p>
             </div>
             <div className="p-3 bg-purple-50 rounded-lg">
@@ -151,14 +171,8 @@ const Customer = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div
-                    className={`${
-                      customer.color || "bg-gray-500"
-                    } w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
-                    {customer.name
-                      ?.split(" ")
-                      .map((initial) => initial[0])
-                      .join("")
-                      .toUpperCase()}
+                    className={`${customer.color} w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
+                    {customer.initials}
                   </div>
 
                   <div>
@@ -175,7 +189,7 @@ const Customer = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
                       <Phone size={14} />
-                      <span>{customer.ph_no}</span>
+                      <span>{customer.phone}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
                       <MapPin size={14} />
@@ -184,7 +198,7 @@ const Customer = () => {
                   </div>
                 </div>
                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                  {customer.status || "active"}
+                  {customer.status}
                 </span>
               </div>
 
@@ -193,27 +207,27 @@ const Customer = () => {
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Orders</p>
                   <p className="text-lg font-bold text-slate-800">
-                    {customer.orders || 0}
+                    {customer.orders}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Spent</p>
                   <p className="text-lg font-bold text-slate-800">
-                    ${customer.spent || 0}
+                    ${customer.spent}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Last Order</p>
                   <p className="text-lg font-bold text-slate-800">
-                    {customer.lastOrder || "-"}
+                    {customer.lastOrder}
                   </p>
                 </div>
               </div>
 
               {/* View Details Button */}
-              <button className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors active:scale-[0.99]">
+              {/* <button className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors active:scale-[0.99]">
                 View Details
-              </button>
+              </button> */}
             </div>
           ))
         ) : (

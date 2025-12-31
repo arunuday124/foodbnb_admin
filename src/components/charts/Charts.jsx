@@ -93,9 +93,6 @@ export default function DashboardOverview() {
     },
   ];
 
-  // Recent Orders Data - Food Delivery App
-  // const recentOrders = [];
-
   // Fetch recent orders from Firestore on component mount
   useEffect(() => {
     const fetchOrders = async () => {
@@ -117,8 +114,6 @@ export default function DashboardOverview() {
       </span>
     );
   };
-
-  // Top Products Data - Popular Food Items
 
   // Fetch top reviews from Firestore on component mount
   useEffect(() => {
@@ -252,7 +247,7 @@ export default function DashboardOverview() {
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 appearance-none pr-8">
+                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none  appearance-none pr-8">
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -333,7 +328,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Custom Scrollbar Styles */}
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }

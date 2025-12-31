@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Users } from "lucide-react";
+// CHANGED: Added Firebase imports to fetch user count from Firestore
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../Firebase"; // Adjust the path to your firebase config file
 
 // --- Sub-component for Number Animation ---
 const AnimatedNumber = ({ value, duration = 1000 }) => {
@@ -38,16 +41,72 @@ const AnimatedNumber = ({ value, duration = 1000 }) => {
 const Analytics = () => {
   // State to trigger progress bar animations
   const [isLoaded, setIsLoaded] = useState(false);
+  // CHANGED: Added state to store total users count from Firebase
+  const [totalUsers, setTotalUsers] = useState(0);
+  // CHANGED: Added state to store repeat customers count (users with total_orders >= 10)
+  const [repeatCustomers, setRepeatCustomers] = useState(0);
+  // CHANGED: Added loading state to show loading indicator while fetching data
+  const [loading, setLoading] = useState(true);
+
+  // CHANGED: New function to fetch total users from Firebase "Users" collection
+  const fetchTotalUsers = async () => {
+    try {
+      const usersCollection = collection(db, "Users");
+      const userSnapshot = await getDocs(usersCollection);
+      setTotalUsers(userSnapshot.size); // Get the count of documents
+
+      // CHANGED: Count repeat customers (users with total_orders >= 10)
+      let repeatCount = 0;
+      userSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        const totalOrders = userData.total_orders || 0; // Default to 0 if field doesn't exist
+        if (totalOrders >= 10) {
+          repeatCount++;
+        }
+      });
+      setRepeatCustomers(repeatCount);
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsLoaded(true);
+    // CHANGED: Call fetchTotalUsers on component mount
+    fetchTotalUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // CHANGED: Updated "New Customers" value to use dynamic totalUsers from Firebase instead of hardcoded "142"
+  // CHANGED: Updated "Repeat Customers" value to use dynamic repeatCustomers count (users with total_orders >= 10)
   const statsCards = [
-    { label: "New Customers", value: "142", change: "12.5% vs last month", isPositive: true },
-    { label: "Repeat Customers", value: "876", change: "8.3% vs last month", isPositive: true },
-    { label: "Customer Retention", value: "86%", change: "4.2% vs last month", isPositive: true },
-    { label: "Avg. Order Value", value: "₹36.42", change: "2.1% vs last month", isPositive: false },
+    {
+      label: "New Customers",
+      value: loading ? "0" : totalUsers.toString(),
+      change: "12.5% vs last month",
+      isPositive: true,
+    },
+    {
+      label: "Repeat Customers",
+      value: loading ? "0" : repeatCustomers.toString(),
+      change: "8.3% vs last month",
+      isPositive: true,
+    },
+    {
+      label: "Customer Retention",
+      value: "86%",
+      change: "4.2% vs last month",
+      isPositive: true,
+    },
+    {
+      label: "Avg. Order Value",
+      value: "₹36.42",
+      change: "2.1% vs last month",
+      isPositive: false,
+    },
   ];
 
   const revenueData = [
@@ -70,21 +129,36 @@ const Analytics = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-sm text-gray-600 mt-1">Track your business performance and insights</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Analytics Dashboard
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Track your business performance and insights
+          </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {statsCards.map((stat, index) => (
-            <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 shadow-xl">
+            <div
+              key={index}
+              className="bg-white rounded-lg border border-gray-200 p-6 shadow-xl">
               <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
               <p className="text-3xl font-bold text-gray-900 mb-2">
                 <AnimatedNumber value={stat.value} />
               </p>
               <div className="flex items-center gap-1">
-                {stat.isPositive ? <TrendingUp size={16} className="text-green-600" /> : <TrendingDown size={16} className="text-red-600" />}
-                <p className={`text-sm ${stat.isPositive ? "text-green-600" : "text-red-600"}`}>{stat.change}</p>
+                {stat.isPositive ? (
+                  <TrendingUp size={16} className="text-green-600" />
+                ) : (
+                  <TrendingDown size={16} className="text-red-600" />
+                )}
+                <p
+                  className={`text-sm ${
+                    stat.isPositive ? "text-green-600" : "text-red-600"
+                  }`}>
+                  {stat.change}
+                </p>
               </div>
             </div>
           ))}
@@ -104,10 +178,16 @@ const Analytics = () => {
               {revenueData.map((item, index) => (
                 <div key={index}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">{item.month}</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {item.month}
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-bold text-gray-900">{item.revenue}</span>
-                      <span className="text-sm text-gray-500">({item.orders})</span>
+                      <span className="text-base font-bold text-gray-900">
+                        {item.revenue}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        ({item.orders})
+                      </span>
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -122,9 +202,11 @@ const Analytics = () => {
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Total Revenue (6 months)</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Total Revenue (6 months)
+                </span>
                 <span className="text-2xl font-bold text-green-600">
-                   <AnimatedNumber value="₹109,200" />
+                  <AnimatedNumber value="₹109,200" />
                 </span>
               </div>
             </div>
@@ -133,14 +215,18 @@ const Analytics = () => {
           {/* Customer Insights */}
           <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Customer Insights</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                Customer Insights
+              </h2>
               <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
                 <Users size={18} className="text-purple-600" />
               </div>
             </div>
 
             <div className="bg-purple-50 rounded-lg p-6 mb-6">
-              <p className="text-sm text-purple-700 font-medium mb-2">Total Customers</p>
+              <p className="text-sm text-purple-700 font-medium mb-2">
+                Total Customers
+              </p>
               <p className="text-4xl font-bold text-purple-900 mb-2">
                 <AnimatedNumber value="1,265" />
               </p>
@@ -149,14 +235,18 @@ const Analytics = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-6">
-                <p className="text-sm text-blue-700 font-medium mb-2">First Time</p>
+                <p className="text-sm text-blue-700 font-medium mb-2">
+                  First Time
+                </p>
                 <p className="text-3xl font-bold text-blue-900 mb-1">
                   <AnimatedNumber value="234" />
                 </p>
                 <p className="text-sm text-blue-600">18.5%</p>
               </div>
               <div className="bg-green-50 rounded-lg p-6">
-                <p className="text-sm text-green-700 font-medium mb-2">Returning</p>
+                <p className="text-sm text-green-700 font-medium mb-2">
+                  Returning
+                </p>
                 <p className="text-3xl font-bold text-green-900 mb-1">
                   <AnimatedNumber value="1,031" />
                 </p>
@@ -165,18 +255,26 @@ const Analytics = () => {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Order Frequency</h3>
+              <h3 className="text-base font-semibold text-gray-900 mb-4">
+                Order Frequency
+              </h3>
               <div className="space-y-4">
                 {orderFrequency.map((item, index) => (
                   <div key={index}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                      <span className="text-sm font-bold text-gray-900">{item.percentage}%</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.label}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {item.percentage}%
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
                         className={`${item.color} h-full rounded-full transition-all duration-1000 ease-out`}
-                        style={{ width: isLoaded ? `${item.percentage}%` : "0%" }}
+                        style={{
+                          width: isLoaded ? `${item.percentage}%` : "0%",
+                        }}
                       />
                     </div>
                   </div>

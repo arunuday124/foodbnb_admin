@@ -105,7 +105,7 @@ const Login_Auth = () => {
             </a>
             <button
               onClick={handleLogin}
-              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold hover:bg-teal-600 transition-all">
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold hover:bg-red-500 transition-all">
               Sign In
             </button>
           </div>
@@ -193,7 +193,7 @@ const Login_Auth = () => {
             </div>
             <button
               onClick={handleSignUp}
-              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold hover:bg-teal-600 transition-all duration-300 uppercase tracking-wider shadow-lg hover:shadow-xl">
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold hover:bg-red-500 transition-all duration-300 uppercase tracking-wider shadow-lg hover:shadow-xl">
               Sign Up
             </button>
           </div>
