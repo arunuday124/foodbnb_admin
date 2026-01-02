@@ -14,7 +14,7 @@ import { db } from "../../Firebase";
 
 const Delivery = () => {
   const [drivers, setDrivers] = useState([]);
-  const [preparingOrders, setPreparingOrders] = useState(0);
+  const [activeOrders, setActiveOrders] = useState(0);
 
   // Fetch drivers from Firestore
   useEffect(() => {
@@ -33,15 +33,16 @@ const Delivery = () => {
     fetchDrivers();
   }, []);
 
-  // Fetch orders and count preparing status
+  // Fetch orders and count "In Transit" or "Preparing" status
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "orders"));
-        const preparingCount = querySnapshot.docs.filter(
-          (doc) => doc.data().order_status === "preparing"
-        ).length;
-        setPreparingOrders(preparingCount);
+        const activeOrdersCount = querySnapshot.docs.filter((doc) => {
+          const status = doc.data().order_status;
+          return status === "In Transit" || status === "Preparing";
+        }).length;
+        setActiveOrders(activeOrdersCount);
       } catch (error) {
         console.error("Error fetching orders:", error);
       }
@@ -65,9 +66,6 @@ const Delivery = () => {
           drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length
         ).toFixed(1)
       : "0.0";
-
-  // Active orders count comes from preparing orders in orders collection
-  const activeOrders = preparingOrders;
 
   return (
     <div className="min-h-full bg-slate-50 p-6">

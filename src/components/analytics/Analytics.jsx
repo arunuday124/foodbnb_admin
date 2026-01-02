@@ -45,8 +45,242 @@ const Analytics = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   // CHANGED: Added state to store repeat customers count (users with total_orders >= 10)
   const [repeatCustomers, setRepeatCustomers] = useState(0);
+  // CHANGED: Added state to store first time customers count (users with total_orders === 1)
+  const [firstTimeCustomers, setFirstTimeCustomers] = useState(0);
+  // CHANGED: Added state to store cancelled orders count
+  const [cancelledOrders, setCancelledOrders] = useState(0);
   // CHANGED: Added loading state to show loading indicator while fetching data
   const [loading, setLoading] = useState(true);
+  // CHANGED: Added state to store revenue data from Firebase orders collection
+  const [revenueData, setRevenueData] = useState([
+    { month: "Dec", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    { month: "Jan", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    { month: "Feb", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    { month: "Mar", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    { month: "Apr", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    { month: "May", revenue: "₹0", orders: "0 orders", percentage: 0 },
+  ]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+
+  // CHANGED: New function to fetch orders data from Firebase "orders" collection
+  const fetchOrdersData = async () => {
+    try {
+      const ordersCollection = collection(db, "orders");
+
+      // Fetch both delivered and cancelled orders
+      const allOrdersSnapshot = await getDocs(ordersCollection);
+
+      // Initialize month data for Dec, Jan, Feb, Mar, Apr, May
+      const monthData = {
+        Dec: { delivered: 0, cancelled: 0, count: 0 },
+        Jan: { delivered: 0, cancelled: 0, count: 0 },
+        Feb: { delivered: 0, cancelled: 0, count: 0 },
+        Mar: { delivered: 0, cancelled: 0, count: 0 },
+        Apr: { delivered: 0, cancelled: 0, count: 0 },
+        May: { delivered: 0, cancelled: 0, count: 0 },
+      };
+
+      let totalDelivered = 0;
+      let totalCancelled = 0;
+      let cancelledCount = 0; // CHANGED: Count cancelled orders
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      // Process each order (both delivered and cancelled)
+      allOrdersSnapshot.forEach((doc) => {
+        const orderData = doc.data();
+        const orderStatus = orderData.order_status;
+        console.log("🔍 FULL ORDER DATA:", orderData);
+        console.log("📊 Order Status:", orderStatus);
+
+        // CHANGED: Count cancelled orders
+        if (orderStatus === "cancelled") {
+          cancelledCount++;
+        }
+
+        // Skip orders that are not delivered or cancelled
+        if (orderStatus !== "delivered" && orderStatus !== "cancelled") {
+          return;
+        }
+
+        // Calculate total price by summing all items in the order
+        let totalPrice = 0;
+
+        // Check if items array exists
+        if (orderData.items && Array.isArray(orderData.items)) {
+          console.log("📦 Items array found:", orderData.items);
+          orderData.items.forEach((item, index) => {
+            const itemPrice = parseFloat(item.price) || 0;
+            const itemQnt = parseFloat(item.qnt) || 1;
+            totalPrice += itemPrice * itemQnt;
+            console.log(
+              `📦 Item ${index}: ${
+                item.name
+              }, Price: ${itemPrice}, Qty: ${itemQnt}, Subtotal: ${
+                itemPrice * itemQnt
+              }`
+            );
+          });
+        } else {
+          // Fallback: Check for numbered keys (0, 1, 2, etc.)
+          Object.keys(orderData).forEach((key) => {
+            if (!isNaN(key)) {
+              const item = orderData[key];
+              if (item && typeof item === "object") {
+                const itemPrice = parseFloat(item.price) || 0;
+                const itemQnt = parseFloat(item.qnt) || 1;
+                totalPrice += itemPrice * itemQnt;
+                console.log(
+                  `📦 Item ${key}: ${
+                    item.name
+                  }, Price: ${itemPrice}, Qty: ${itemQnt}, Subtotal: ${
+                    itemPrice * itemQnt
+                  }`
+                );
+              }
+            }
+          });
+        }
+
+        console.log("💰 Total Order Price:", totalPrice);
+        console.log("📊 Status:", orderStatus);
+
+        const time = orderData.time;
+        console.log("📅 Time field:", time);
+
+        // Extract month from time field
+        let month = "";
+        let orderDate = null;
+        if (time) {
+          orderDate =
+            time.toDate instanceof Function ? time.toDate() : new Date(time);
+          const monthIndex = orderDate.getMonth(); // 0-11
+          const monthNames = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
+          month = monthNames[monthIndex];
+        }
+
+        // Add to corresponding month if it exists in our display data
+        if (monthData[month] !== undefined) {
+          if (orderStatus === "delivered") {
+            monthData[month].delivered += totalPrice;
+            monthData[month].count += 1;
+            console.log("✅ Added to delivered for", month, ":", totalPrice);
+          } else if (orderStatus === "cancelled") {
+            monthData[month].cancelled += totalPrice;
+            console.log("❌ Added to cancelled for", month, ":", totalPrice);
+          }
+        }
+
+        // Add to total revenue only if order is within last 6 months
+        if (orderDate && orderDate >= sixMonthsAgo) {
+          if (orderStatus === "delivered") {
+            totalDelivered += totalPrice;
+          } else if (orderStatus === "cancelled") {
+            totalCancelled += totalPrice;
+          }
+        }
+      });
+
+      // CHANGED: Set cancelled orders count
+      setCancelledOrders(cancelledCount);
+
+      // Find max total (delivered + cancelled) for percentage calculation
+      const maxTotal = Math.max(
+        ...Object.values(monthData).map((m) => m.delivered + m.cancelled)
+      );
+
+      console.log("📊 Month Data Summary:", monthData);
+      console.log("📊 Max Total (Delivered + Cancelled):", maxTotal);
+
+      // Update revenue data state in Dec, Jan, Feb, Mar, Apr, May order
+      const updatedRevenueData = [
+        {
+          month: "Dec",
+          revenue: `₹${Math.round(monthData.Dec.delivered).toLocaleString()}`,
+          totalRevenue: monthData.Dec.delivered + monthData.Dec.cancelled,
+          delivered: monthData.Dec.delivered,
+          cancelled: monthData.Dec.cancelled,
+          orders: `${monthData.Dec.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.Dec.delivered / maxTotal) * 100 : 0,
+        },
+        {
+          month: "Jan",
+          revenue: `₹${Math.round(monthData.Jan.delivered).toLocaleString()}`,
+          totalRevenue: monthData.Jan.delivered + monthData.Jan.cancelled,
+          delivered: monthData.Jan.delivered,
+          cancelled: monthData.Jan.cancelled,
+          orders: `${monthData.Jan.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.Jan.delivered / maxTotal) * 100 : 0,
+        },
+        {
+          month: "Feb",
+          revenue: `₹${Math.round(monthData.Feb.delivered).toLocaleString()}`,
+          totalRevenue: monthData.Feb.delivered + monthData.Feb.cancelled,
+          delivered: monthData.Feb.delivered,
+          cancelled: monthData.Feb.cancelled,
+          orders: `${monthData.Feb.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.Feb.delivered / maxTotal) * 100 : 0,
+        },
+        {
+          month: "Mar",
+          revenue: `₹${Math.round(monthData.Mar.delivered).toLocaleString()}`,
+          totalRevenue: monthData.Mar.delivered + monthData.Mar.cancelled,
+          delivered: monthData.Mar.delivered,
+          cancelled: monthData.Mar.cancelled,
+          orders: `${monthData.Mar.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.Mar.delivered / maxTotal) * 100 : 0,
+        },
+        {
+          month: "Apr",
+          revenue: `₹${Math.round(monthData.Apr.delivered).toLocaleString()}`,
+          totalRevenue: monthData.Apr.delivered + monthData.Apr.cancelled,
+          delivered: monthData.Apr.delivered,
+          cancelled: monthData.Apr.cancelled,
+          orders: `${monthData.Apr.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.Apr.delivered / maxTotal) * 100 : 0,
+        },
+        {
+          month: "May",
+          revenue: `₹${Math.round(monthData.May.delivered).toLocaleString()}`,
+          totalRevenue: monthData.May.delivered + monthData.May.cancelled,
+          delivered: monthData.May.delivered,
+          cancelled: monthData.May.cancelled,
+          orders: `${monthData.May.count} orders`,
+          percentage:
+            maxTotal > 0 ? (monthData.May.delivered / maxTotal) * 100 : 0,
+        },
+      ];
+
+      setRevenueData(updatedRevenueData);
+      // Sum of delivered revenue for the displayed months
+      const totalDeliveredRevenue = Object.values(monthData).reduce(
+        (sum, month) => sum + month.delivered,
+        0
+      );
+
+      setTotalRevenue(Math.round(totalDeliveredRevenue));
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
 
   // CHANGED: New function to fetch total users from Firebase "Users" collection
   const fetchTotalUsers = async () => {
@@ -57,15 +291,24 @@ const Analytics = () => {
 
       // CHANGED: Count repeat customers (users with total_orders >= 10)
       let repeatCount = 0;
+      // CHANGED: Count first time customers (users with total_orders === 1)
+      let firstTimeCount = 0;
+
       userSnapshot.forEach((doc) => {
         const userData = doc.data();
         const totalOrders = userData.total_orders || 0; // Default to 0 if field doesn't exist
+
         if (totalOrders >= 10) {
           repeatCount++;
         }
-      });
-      setRepeatCustomers(repeatCount);
 
+        if (totalOrders === 1) {
+          firstTimeCount++;
+        }
+      });
+
+      setRepeatCustomers(repeatCount);
+      setFirstTimeCustomers(firstTimeCount);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -75,9 +318,9 @@ const Analytics = () => {
 
   useEffect(() => {
     setIsLoaded(true);
-    // CHANGED: Call fetchTotalUsers on component mount
+    // CHANGED: Call fetchTotalUsers and fetchOrdersData on component mount
     fetchTotalUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchOrdersData();
   }, []);
 
   // CHANGED: Updated "New Customers" value to use dynamic totalUsers from Firebase instead of hardcoded "142"
@@ -107,15 +350,6 @@ const Analytics = () => {
       change: "2.1% vs last month",
       isPositive: false,
     },
-  ];
-
-  const revenueData = [
-    { month: "Jan", revenue: "₹12,500", orders: "342 orders", percentage: 55 },
-    { month: "Feb", revenue: "₹15,200", orders: "398 orders", percentage: 65 },
-    { month: "Mar", revenue: "₹18,900", orders: "456 orders", percentage: 80 },
-    { month: "Apr", revenue: "₹16,300", orders: "412 orders", percentage: 70 },
-    { month: "May", revenue: "₹21,500", orders: "523 orders", percentage: 46 },
-    { month: "Jun", revenue: "₹24,800", orders: "602 orders", percentage: 65 },
   ];
 
   const orderFrequency = [
@@ -203,10 +437,10 @@ const Analytics = () => {
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
-                  Total Revenue (6 months)
+                  Total Revenue (Last 6 Months)
                 </span>
                 <span className="text-2xl font-bold text-green-600">
-                  <AnimatedNumber value="₹109,200" />
+                  ₹{totalRevenue.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -228,9 +462,11 @@ const Analytics = () => {
                 Total Customers
               </p>
               <p className="text-4xl font-bold text-purple-900 mb-2">
-                <AnimatedNumber value="1,265" />
+                <AnimatedNumber value={loading ? "0" : totalUsers.toString()} />
               </p>
-              <p className="text-sm text-purple-600">+142 new this month</p>
+              <p className="text-sm text-purple-600">
+                +{loading ? "0" : totalUsers.toString()} new this month
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -239,18 +475,27 @@ const Analytics = () => {
                   First Time
                 </p>
                 <p className="text-3xl font-bold text-blue-900 mb-1">
-                  <AnimatedNumber value="234" />
+                  <AnimatedNumber
+                    value={loading ? "0" : firstTimeCustomers.toString()}
+                  />
                 </p>
-                <p className="text-sm text-blue-600">18.5%</p>
+                <p className="text-sm text-blue-600">
+                  {loading || totalUsers === 0
+                    ? "0"
+                    : ((firstTimeCustomers / totalUsers) * 100).toFixed(1)}
+                  %
+                </p>
               </div>
               <div className="bg-green-50 rounded-lg p-6">
                 <p className="text-sm text-green-700 font-medium mb-2">
                   Returning
                 </p>
                 <p className="text-3xl font-bold text-green-900 mb-1">
-                  <AnimatedNumber value="1,031" />
+                  <AnimatedNumber
+                    value={loading ? "0" : cancelledOrders.toString()}
+                  />
                 </p>
-                <p className="text-sm text-green-600">81.5%</p>
+                <p className="text-sm text-green-600">Cancelled Orders</p>
               </div>
             </div>
 

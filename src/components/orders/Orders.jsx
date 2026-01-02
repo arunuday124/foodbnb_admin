@@ -1,3 +1,4 @@
+// import { useState } from "react";
 import { MapPin, Clock, UtensilsCrossed } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -6,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 
 const Orders = () => {
   const [activeFilter, setActiveFilter] = useState("all");
-  // CHANGED: Removed allOrders array completely
+
   const [allOrders, setAllOrders] = useState([]);
 
   //order data fetching from firebase
