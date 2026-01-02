@@ -41,16 +41,18 @@ const AnimatedNumber = ({ value, duration = 1000 }) => {
 const Analytics = () => {
   // State to trigger progress bar animations
   const [isLoaded, setIsLoaded] = useState(false);
-  // CHANGED: Added state to store total users count from Firebase
+  // CHANGED: Added state to store new customers count (users with total_orders 0 or 1)
   const [totalUsers, setTotalUsers] = useState(0);
-  // CHANGED: Added state to store repeat customers count (users with total_orders >= 10)
+  // CHANGED: Added state to store repeat customers count (users with total_orders > 10)
   const [repeatCustomers, setRepeatCustomers] = useState(0);
-  // CHANGED: Added state to store first time customers count (users with total_orders === 1)
-  const [firstTimeCustomers, setFirstTimeCustomers] = useState(0);
+  // CHANGED: Added state to store total customers count (new + repeat)
+  const [totalCustomers, setTotalCustomers] = useState(0);
   // CHANGED: Added state to store cancelled orders count
   const [cancelledOrders, setCancelledOrders] = useState(0);
   // CHANGED: Added loading state to show loading indicator while fetching data
   const [loading, setLoading] = useState(true);
+  // CHANGED: Added state to store average order value
+  const [avgOrderValue, setAvgOrderValue] = useState(0);
   // CHANGED: Added state to store revenue data from Firebase orders collection
   const [revenueData, setRevenueData] = useState([
     { month: "Dec", revenue: "₹0", orders: "0 orders", percentage: 0 },
@@ -197,6 +199,21 @@ const Analytics = () => {
       // CHANGED: Set cancelled orders count
       setCancelledOrders(cancelledCount);
 
+      // Calculate average order value for delivered orders
+      const deliveredOrdersCount = Object.values(monthData).reduce(
+        (sum, month) => sum + month.count,
+        0
+      );
+
+      if (deliveredOrdersCount > 0) {
+        const totalDeliveredRevenue = Object.values(monthData).reduce(
+          (sum, month) => sum + month.delivered,
+          0
+        );
+        const avgValue = totalDeliveredRevenue / deliveredOrdersCount;
+        setAvgOrderValue(avgValue);
+      }
+
       // Find max total (delivered + cancelled) for percentage calculation
       const maxTotal = Math.max(
         ...Object.values(monthData).map((m) => m.delivered + m.cancelled)
@@ -287,28 +304,30 @@ const Analytics = () => {
     try {
       const usersCollection = collection(db, "Users");
       const userSnapshot = await getDocs(usersCollection);
-      setTotalUsers(userSnapshot.size); // Get the count of documents
 
-      // CHANGED: Count repeat customers (users with total_orders >= 10)
+      // CHANGED: Count new customers (users with total_orders 0 or 1)
+      let newCustomerCount = 0;
+      // CHANGED: Count repeat customers (users with total_orders > 10)
       let repeatCount = 0;
-      // CHANGED: Count first time customers (users with total_orders === 1)
-      let firstTimeCount = 0;
 
       userSnapshot.forEach((doc) => {
         const userData = doc.data();
         const totalOrders = userData.total_orders || 0; // Default to 0 if field doesn't exist
 
-        if (totalOrders >= 10) {
-          repeatCount++;
+        if (totalOrders === 0 || totalOrders === 1) {
+          newCustomerCount++;
         }
 
-        if (totalOrders === 1) {
-          firstTimeCount++;
+        if (totalOrders > 10) {
+          repeatCount++;
         }
       });
 
-      setRepeatCustomers(repeatCount);
-      setFirstTimeCustomers(firstTimeCount);
+      const totalCust = newCustomerCount + repeatCount;
+
+      setTotalUsers(newCustomerCount); // New customers count
+      setRepeatCustomers(repeatCount); // Repeat customers count
+      setTotalCustomers(totalCust); // Total customers (for retention calculation)
       setLoading(false);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -323,8 +342,16 @@ const Analytics = () => {
     fetchOrdersData();
   }, []);
 
-  // CHANGED: Updated "New Customers" value to use dynamic totalUsers from Firebase instead of hardcoded "142"
-  // CHANGED: Updated "Repeat Customers" value to use dynamic repeatCustomers count (users with total_orders >= 10)
+  // CHANGED: Updated stats cards to use dynamic data from Firebase
+  // New Customers: users with total_orders 0 or 1
+  // Repeat Customers: users with total_orders > 10
+  // Customer Retention: percentage of repeat customers out of total customers
+  // Avg. Order Value: average price of delivered orders
+  const retentionPercentage =
+    totalCustomers > 0
+      ? ((repeatCustomers / totalCustomers) * 100).toFixed(1)
+      : "0";
+
   const statsCards = [
     {
       label: "New Customers",
@@ -340,13 +367,13 @@ const Analytics = () => {
     },
     {
       label: "Customer Retention",
-      value: "86%",
+      value: `${retentionPercentage}%`,
       change: "4.2% vs last month",
       isPositive: true,
     },
     {
       label: "Avg. Order Value",
-      value: "₹36.42",
+      value: loading ? "₹0" : `₹${avgOrderValue.toFixed(2)}`,
       change: "2.1% vs last month",
       isPositive: false,
     },
@@ -462,7 +489,9 @@ const Analytics = () => {
                 Total Customers
               </p>
               <p className="text-4xl font-bold text-purple-900 mb-2">
-                <AnimatedNumber value={loading ? "0" : totalUsers.toString()} />
+                <AnimatedNumber
+                  value={loading ? "0" : totalCustomers.toString()}
+                />
               </p>
               <p className="text-sm text-purple-600">
                 +{loading ? "0" : totalUsers.toString()} new this month
@@ -476,13 +505,13 @@ const Analytics = () => {
                 </p>
                 <p className="text-3xl font-bold text-blue-900 mb-1">
                   <AnimatedNumber
-                    value={loading ? "0" : firstTimeCustomers.toString()}
+                    value={loading ? "0" : totalUsers.toString()}
                   />
                 </p>
                 <p className="text-sm text-blue-600">
-                  {loading || totalUsers === 0
+                  {loading || totalCustomers === 0
                     ? "0"
-                    : ((firstTimeCustomers / totalUsers) * 100).toFixed(1)}
+                    : ((totalUsers / totalCustomers) * 100).toFixed(1)}
                   %
                 </p>
               </div>
