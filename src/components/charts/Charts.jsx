@@ -15,6 +15,48 @@ import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
 
 // ============================================
+// AnimatedNumber Component
+// ============================================
+const AnimatedNumber = ({
+  value,
+  duration = 4000,
+  prefix = "",
+  suffix = "",
+}) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let startTime;
+    let animationId;
+
+    const animate = (currentTime) => {
+      if (!startTime) startTime = currentTime;
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const currentValue = Math.floor(progress * value);
+      setDisplayValue(currentValue);
+
+      if (progress < 1) {
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationId);
+  }, [value, duration]);
+
+  return (
+    <span>
+      {prefix}
+      {displayValue.toLocaleString()}
+      {suffix}
+    </span>
+  );
+};
+
+// ============================================
 // Main Dashboard Component
 // ============================================
 export default function DashboardOverview() {
@@ -30,7 +72,14 @@ export default function DashboardOverview() {
   // ============================================
   // StatCard Component (Nested Inside)
   // ============================================
-  const StatCard = ({ title, value, change, icon: Icon, isNegative }) => {
+  const StatCard = ({
+    title,
+    value,
+    change,
+    icon: Icon,
+    isNegative,
+    numericValue,
+  }) => {
     return (
       <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
         {/* Card Header */}
@@ -43,7 +92,16 @@ export default function DashboardOverview() {
 
         {/* Card Content */}
         <div className="flex flex-col gap-2">
-          <p className="text-black text-3xl font-bold">{value}</p>
+          <p className="text-black text-3xl font-bold">
+            {title === "Total Revenue" ? (
+              <>
+                ₹
+                <AnimatedNumber value={numericValue} duration={1000} />
+              </>
+            ) : (
+              <AnimatedNumber value={numericValue} duration={1000} />
+            )}
+          </p>
 
           {/* Stats Change */}
           <div className="flex items-center gap-2">
@@ -71,6 +129,7 @@ export default function DashboardOverview() {
     {
       title: "Total Revenue",
       value: `₹${totalRevenue.toLocaleString()}`,
+      numericValue: totalRevenue,
       change: "20.1%",
       icon: IndianRupee,
       isNegative: false,
@@ -78,6 +137,7 @@ export default function DashboardOverview() {
     {
       title: "Active Users",
       value: activeUsers.toString(),
+      numericValue: activeUsers,
       change: "15.3%",
       icon: Users,
       isNegative: false,
@@ -85,6 +145,7 @@ export default function DashboardOverview() {
     {
       title: "Total Orders",
       value: totalOrders.toString(),
+      numericValue: totalOrders,
       change: "4.2%",
       icon: ShoppingCart,
       isNegative: true,
@@ -92,6 +153,7 @@ export default function DashboardOverview() {
     {
       title: "Total Users",
       value: totalUsers.toString(),
+      numericValue: totalUsers,
       change: "8.7%",
       icon: UserPlus,
       isNegative: true,
@@ -263,6 +325,7 @@ export default function DashboardOverview() {
               key={index}
               title={stat.title}
               value={stat.value}
+              numericValue={stat.numericValue}
               change={stat.change}
               icon={stat.icon}
               isNegative={stat.isNegative}

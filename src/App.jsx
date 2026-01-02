@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
 import Navbar from "./components/navbar/Navbar.jsx";
@@ -10,6 +10,14 @@ import Orders from "./components/orders/Orders.jsx";
 import Customer from "./components/customers/Customer.jsx";
 import Delivery from "./components/delivery/Delivery.jsx";
 import Login_Auth from "./components/Login/Login_Auth.jsx";
+
+// Memoize page components to prevent re-renders when parent state changes
+const MemoCharts = memo(Charts);
+const MemoAnalytics = memo(Analytics);
+const MemoOrders = memo(Orders);
+const MemoCustomer = memo(Customer);
+const MemoDelivery = memo(Delivery);
+const MemoSettings = memo(Setting_page);
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,13 +62,13 @@ function App() {
 
                 <main className="fixed top-16 left-0 right-0 bottom-0 lg:left-64 overflow-y-auto">
                   <Routes>
-                    <Route path="/" element={<Charts />} />
-                    <Route path="/charts" element={<Charts />} />
-                    <Route path="/settings" element={<Setting_page />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/orders" element={<Orders />} />
-                    <Route path="/customers" element={<Customer />} />
-                    <Route path="/delivery" element={<Delivery />} />
+                    <Route path="/" element={<MemoCharts />} />
+                    <Route path="/charts" element={<MemoCharts />} />
+                    <Route path="/settings" element={<MemoSettings />} />
+                    <Route path="/analytics" element={<MemoAnalytics />} />
+                    <Route path="/orders" element={<MemoOrders />} />
+                    <Route path="/customers" element={<MemoCustomer />} />
+                    <Route path="/delivery" element={<MemoDelivery />} />
                   </Routes>
                 </main>
               </>

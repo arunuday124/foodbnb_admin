@@ -213,7 +213,7 @@ const Customer = () => {
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Spent</p>
                   <p className="text-lg font-bold text-slate-800">
-                    ${customer.spent}
+                    ₹{customer.spent}
                   </p>
                 </div>
                 <div>
