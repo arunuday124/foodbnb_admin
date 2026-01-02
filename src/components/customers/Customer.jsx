@@ -17,7 +17,6 @@ const Customer = () => {
 
         const customerData = querySnapshot.docs.map((doc) => {
           const data = doc.data();
-          console.log("Document data:", data);
 
           const nameParts = data.name?.split(" ") || ["U"];
           const initials =
@@ -38,19 +37,18 @@ const Customer = () => {
           return {
             id: doc.id,
             name: data.name || "Unknown",
-            initials: initials,
-            color: color,
+            initials,
+            color,
             email: data.email || "N/A",
             phone: data.ph_no || "N/A",
             address: data.address || "N/A",
-            orders: data.total_orders,
+            orders: data.total_orders || 0,
             spent: 0,
             lastOrder: "N/A",
             status: "active",
           };
         });
 
-        console.log("Customer data mapped:", customerData);
         setCustomers(customerData);
       } catch (error) {
         console.error("Error fetching customers:", error);
@@ -64,16 +62,15 @@ const Customer = () => {
   const totalCustomers = customers.length;
   const activeCustomers = customers.filter((c) => c.status === "active").length;
   const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
-  const totalRevenue = customers.reduce((sum, c) => sum + c.spent, 0);
 
   // Filter customers based on search query
   const query = searchQuery.trim().toLowerCase();
 
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.id.toString().includes(query)
+      customer.name.toLowerCase().includes(query) ||
+      customer.email.toLowerCase().includes(query) ||
+      customer.id.toLowerCase().includes(query)
   );
 
   return (
@@ -87,7 +84,7 @@ const Customer = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-start justify-between">
             <div>
@@ -127,20 +124,6 @@ const Customer = () => {
             </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
-              <p className="text-3xl font-bold text-slate-800">
-                ₹{totalRevenue}
-              </p>
-            </div>
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <ShoppingBag className="text-purple-600" size={24} />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Search Bar */}
@@ -160,14 +143,13 @@ const Customer = () => {
         </div>
       </div>
 
-      {/* Customer Cards Grid */}
+      {/* Customer Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredCustomers.length > 0 ? (
           filteredCustomers.map((customer) => (
             <div
               key={customer.id}
               className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              {/* Customer Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div
@@ -179,31 +161,27 @@ const Customer = () => {
                     <h3 className="text-lg font-semibold text-slate-800">
                       {customer.name}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                      <Mail size={14} />
-                      <span>{customer.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                      <IdCard size={14} />
-                      <span>Customer Id:-{customer.id}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                      <Phone size={14} />
-                      <span>{customer.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                      <MapPin size={14} />
-                      <span>{customer.address}</span>
-                    </div>
+                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                      <Mail size={14} /> {customer.email}
+                    </p>
+                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                      <IdCard size={14} /> Customer Id: {customer.id}
+                    </p>
+                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                      <Phone size={14} /> {customer.phone}
+                    </p>
+                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                      <MapPin size={14} /> {customer.address}
+                    </p>
                   </div>
                 </div>
+
                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                   {customer.status}
                 </span>
               </div>
 
-              {/* Customer Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
                 <div>
                   <p className="text-xs text-slate-600 mb-1">Orders</p>
                   <p className="text-lg font-bold text-slate-800">
@@ -223,11 +201,6 @@ const Customer = () => {
                   </p>
                 </div>
               </div>
-
-              {/* View Details Button */}
-              {/* <button className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors active:scale-[0.99]">
-                View Details
-              </button> */}
             </div>
           ))
         ) : (
