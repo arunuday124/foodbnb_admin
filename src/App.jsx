@@ -10,6 +10,7 @@ import Orders from "./components/orders/Orders.jsx";
 import Customer from "./components/customers/Customer.jsx";
 import Delivery from "./components/delivery/Delivery.jsx";
 import Login_Auth from "./components/Login/Login_Auth.jsx";
+import Restaurant from "./components/restaurant/Restaurant.jsx";
 
 // Memoize page components to prevent re-renders when parent state changes
 const MemoCharts = memo(Charts);
@@ -18,6 +19,7 @@ const MemoOrders = memo(Orders);
 const MemoCustomer = memo(Customer);
 const MemoDelivery = memo(Delivery);
 const MemoSettings = memo(Setting_page);
+const MemoRestaurant = memo(Restaurant);
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -69,6 +71,7 @@ function App() {
                     <Route path="/orders" element={<MemoOrders />} />
                     <Route path="/customers" element={<MemoCustomer />} />
                     <Route path="/delivery" element={<MemoDelivery />} />
+                    <Route path="/restaurant" element={<Restaurant />} />
                   </Routes>
                 </main>
               </>
