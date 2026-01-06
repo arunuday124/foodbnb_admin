@@ -157,7 +157,7 @@ export default function AdminLogin() {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
                   id="remember"
@@ -178,7 +178,7 @@ export default function AdminLogin() {
                 className="text-sm text-blue-400 hover:text-blue-300 transition">
                 Forgot password?
               </button>
-            </div>
+            </div> */}
 
             <button
               type="button"
@@ -213,15 +213,15 @@ export default function AdminLogin() {
             </button>
           </div>
 
-          <div className="mt-6 text-center">
+          {/* <div className="mt-6 text-center">
             <p className="text-sm text-slate-400">
-              Protected by enterprise security
+              Protected by Firebase Authentication
             </p>
-          </div>
+          </div> */}
         </div>
 
         <p className="mt-8 text-center text-sm text-slate-500">
-          © 2024 Admin Panel. All rights reserved.
+          © 2026 Admin Panel. All rights reserved by foodbnb.
         </p>
       </div>
     </div>
