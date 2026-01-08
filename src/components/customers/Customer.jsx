@@ -1,29 +1,53 @@
 import React, { useState, useEffect } from "react";
-import { Search, ShoppingBag, Mail, Phone, MapPin, IdCard } from "lucide-react";
+import { Search, ShoppingBag, Mail, User } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "../../Firebase";
+import { db, auth } from "../../Firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { Timestamp } from "firebase/firestore";
 
 const Customer = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
-  // Fetch customer data from Firestore
+  // Check authentication - runs once
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
+        setError("Please log in to view customers.");
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch customer data - ONLY ONCE per session
+  useEffect(() => {
+    if (!user || hasFetched) return;
+
     const fetchCustomers = async () => {
       try {
-        console.log("Fetching customers from Firestore...");
-        const querySnapshot = await getDocs(collection(db, "Users"));
-        console.log("Total documents found:", querySnapshot.docs.length);
+        setLoading(true);
+
+        // Single Firestore query - this is the ONLY request
+        const querySnapshot = await getDocs(collection(db, "users"));
 
         const customerData = querySnapshot.docs.map((doc) => {
           const data = doc.data();
 
+          // Generate initials
           const nameParts = data.name?.split(" ") || ["U"];
           const initials =
             nameParts.length > 1
               ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
               : nameParts[0][0].toUpperCase();
 
+          // Random color
           const colors = [
             "bg-orange-500",
             "bg-blue-500",
@@ -36,46 +60,47 @@ const Customer = () => {
 
           return {
             id: doc.id,
-            name: data.name || "Unknown",
+            name: data.name || "Unknown User",
+            email: data.email || "No email",
+            photoURL: data.photoURL || null,
+            createdAt: data.createdAt || null,
+            walletBalance: data.walletBalance || null,
+            updatedAt: data.updatedAt || null,
             initials,
             color,
-            email: data.email || "N/A",
-            phone: data.ph_no || "N/A",
-            address: data.address || "N/A",
-            orders: data.total_orders || 0,
-            spent: 0,
-            lastOrder: "N/A",
-            status: "active",
           };
         });
 
         setCustomers(customerData);
-      } catch (error) {
-        console.error("Error fetching customers:", error);
+        setHasFetched(true); // Prevent refetching
+        setError(null);
+      } catch (err) {
+        setError(`Failed to load customers: ${err.message}`);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCustomers();
-  }, []);
+  }, [user, hasFetched]);
 
-  // Calculate stats
-  const totalCustomers = customers.length;
-  const activeCustomers = customers.filter((c) => c.status === "active").length;
-  const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
+  // Client-side filtering - NO additional Firestore requests
+  const queryLower = searchQuery.trim().toLowerCase();
+  const filteredCustomers = customers.filter((customer) => {
+    const name = (customer.name || "").toLowerCase();
+    const email = (customer.email || "").toLowerCase();
+    const id = (customer.id || "").toLowerCase();
 
-  // Filter customers based on search query
-  const query = searchQuery.trim().toLowerCase();
-
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(query) ||
-      customer.email.toLowerCase().includes(query) ||
-      customer.id.toLowerCase().includes(query)
-  );
+    return (
+      name.includes(queryLower) ||
+      email.includes(queryLower) ||
+      id.includes(queryLower)
+    );
+  });
 
   return (
     <div className="min-h-full bg-slate-50 p-6">
-      {/* Header Section */}
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">
           Customer Management
@@ -83,18 +108,18 @@ const Customer = () => {
         <p className="text-slate-600">View and manage your customer base</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-slate-600 mb-1">Total Customers</p>
               <p className="text-3xl font-bold text-slate-800">
-                {totalCustomers}
+                {customers.length}
               </p>
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">
-              <ShoppingBag className="text-blue-600" size={24} />
+              <User className="text-blue-600" size={24} />
             </div>
           </div>
         </div>
@@ -102,13 +127,13 @@ const Customer = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-slate-600 mb-1">Active Customers</p>
+              <p className="text-sm text-slate-600 mb-1">Registered Users</p>
               <p className="text-3xl font-bold text-slate-800">
-                {activeCustomers}
+                {customers.filter((c) => c.email !== "No email").length}
               </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
-              <ShoppingBag className="text-green-600" size={24} />
+              <Mail className="text-green-600" size={24} />
             </div>
           </div>
         </div>
@@ -116,8 +141,10 @@ const Customer = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-slate-600 mb-1">Total Orders</p>
-              <p className="text-3xl font-bold text-slate-800">{totalOrders}</p>
+              <p className="text-sm text-slate-600 mb-1">With Photos</p>
+              <p className="text-3xl font-bold text-slate-800">
+                {customers.filter((c) => c.photoURL).length}
+              </p>
             </div>
             <div className="p-3 bg-orange-50 rounded-lg">
               <ShoppingBag className="text-orange-600" size={24} />
@@ -126,7 +153,7 @@ const Customer = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8">
         <div className="relative">
           <Search
@@ -135,7 +162,7 @@ const Customer = () => {
           />
           <input
             type="text"
-            placeholder="Search customers by name, email, or phone..."
+            placeholder="Search customers by name, email, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-4 text-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -143,74 +170,80 @@ const Customer = () => {
         </div>
       </div>
 
-      {/* Customer Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredCustomers.length > 0 ? (
-          filteredCustomers.map((customer) => (
-            <div
-              key={customer.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`${customer.color} w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
-                    {customer.initials}
-                  </div>
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-12">
+          <p className="text-slate-500 text-lg">Loading customers...</p>
+        </div>
+      )}
 
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-800">
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Customer Cards */}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredCustomers.length > 0 ? (
+            filteredCustomers.map((customer) => (
+              <div
+                key={customer.id}
+                className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-4">
+                  {customer.photoURL ? (
+                    <img
+                      src={customer.photoURL}
+                      alt={customer.name}
+                      className="w-16 h-16 rounded-full object-cover shadow-md"
+                    />
+                  ) : (
+                    <div
+                      className={`${customer.color} w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md`}>
+                      {customer.initials}
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
                       {customer.name}
                     </h3>
-                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
-                      <Mail size={14} /> {customer.email}
-                    </p>
-                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
-                      <IdCard size={14} /> Customer Id: {customer.id}
-                    </p>
-                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
-                      <Phone size={14} /> {customer.phone}
-                    </p>
-                    <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
-                      <MapPin size={14} /> {customer.address}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-600 flex items-center gap-2">
+                        <Mail size={14} className="flex-shrink-0" />
+                        <span className="truncate">{customer.email}</span>
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        ID: {customer.id}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        createdAt:{" "}
+                        {customer.createdAt?.toDate().toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Wallet: {customer.walletBalance ?? 0}
+                      </p>
+
+                      <p className="text-xs text-slate-500">
+                        Updated:{" "}
+                        {customer.updatedAt?.toDate().toLocaleString() || "N/A"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                  {customer.status}
-                </span>
               </div>
-
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Orders</p>
-                  <p className="text-lg font-bold text-slate-800">
-                    {customer.orders}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Spent</p>
-                  <p className="text-lg font-bold text-slate-800">
-                    ₹{customer.spent}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Last Order</p>
-                  <p className="text-lg font-bold text-slate-800">
-                    {customer.lastOrder}
-                  </p>
-                </div>
-              </div>
+            ))
+          ) : (
+            <div className="col-span-2 text-center py-12">
+              <p className="text-slate-500 text-lg">
+                No customers found matching your search.
+              </p>
             </div>
-          ))
-        ) : (
-          <div className="col-span-2 text-center py-12">
-            <p className="text-slate-500 text-lg">
-              No customers found matching your search.
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
