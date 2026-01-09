@@ -449,6 +449,9 @@ export default function DashboardOverview() {
                         <h3 className="text-black font-semibold text-lg mb-1">
                           {review.name}
                         </h3>
+                        <p className="text-black text-sm mb-2 font-medium">
+                          {review.kitchenName}
+                        </p>
                         <p className="text-black text-sm mb-2">
                           {review.product}
                         </p>
