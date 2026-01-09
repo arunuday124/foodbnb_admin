@@ -1,5 +1,5 @@
 // import { useState } from "react";
-import { MapPin, Clock, UtensilsCrossed } from "lucide-react";
+import { MapPin, Clock, UtensilsCrossed, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
@@ -9,7 +9,20 @@ const Orders = () => {
   const [activeFilter, setActiveFilter] = useState("all");
 
   const [allOrders, setAllOrders] = useState([]);
+  const [copy , setCopy] = useState("");
+  const [copiedId, setCopiedId] = useState(null);
+  const [showToast, setShowToast] = useState(false);
 
+  //for copy text user id
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopy(text);
+    setCopiedId(text);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  
   //order data fetching from firebase
   useEffect(() => {
     const fetchOrders = async () => {
@@ -29,7 +42,7 @@ const Orders = () => {
           };
         });
         setAllOrders(ordersList);
-        console.log("Fetched orders:", ordersList);
+        // console.log("Fetched orders:", ordersList);
       } catch (error) {
         console.error("Error fetching orders:", error);
       }
@@ -49,7 +62,10 @@ const Orders = () => {
       default:
         return "bg-gray-100 text-gray-700";
     }
-  };
+  };  
+
+  
+
 
   const getStatusLabel = (status) => {
     return status
@@ -81,6 +97,12 @@ const Orders = () => {
 
   return (
     <div className="min-h-full bg-gray-50 p-4 md:p-6 lg:p-8">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-18 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in">
+          ID copied: {copiedId}
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -191,9 +213,26 @@ const Orders = () => {
 
                 {/* Customer Info */}
                 <div className="mb-4">
-                  <p className="font-semibold text-gray-900 mb-1">
+                  <p className="font-semibold text-gray-900">
                     {order.name}
                   </p>
+                  {/* user id */}
+                   <div className="flex items-start gap-2 text-sm text-gray-600 mb-2" >
+                    <p className="line-clamp-2">Uid : {order.Uid}
+                    <span className="relative group ml-2">
+                      <Copy 
+                        size={14} 
+                        className="inline cursor-pointer text-gray-400 hover:text-black transition-colors" 
+                        onClick={() => handleCopy(order.Uid)}
+                      />
+                      <span className="absolute left-0 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        Copy
+                      </span>
+                    </span>
+                    </p>
+                  </div>
+
+
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <MapPin size={16} className="mt-0.5 shrink-0" />
                     <p className="line-clamp-2">{order.address}</p>

@@ -551,6 +551,29 @@ function Setting_page() {
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                         />
                       </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                          Platform Fee
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            ₹
+                          </span>
+                          <input
+                            type="text"
+                            value={deliverySettings.deliveryFee}
+                            onChange={(e) =>
+                              handleDeliveryChange(
+                                "deliveryFee",
+                                e.target.value
+                              )
+                            }
+                            className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          />
+                        </div>
+                      </div>
+                      
                     </div>
 
                     <button
