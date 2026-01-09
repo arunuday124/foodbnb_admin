@@ -333,7 +333,7 @@ export default function DashboardOverview() {
           {/* Recent Orders Box */}
           <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg border-2 border-gray-300">
             <h2 className="text-black text-xl font-bold mb-6">
-              Recent Orders (Last 12 Hours)
+              All Recent Orders (Last 12 Hours)
             </h2>
 
             {/* Scrollable Orders List */}
@@ -368,7 +368,7 @@ export default function DashboardOverview() {
                     <div className="mb-2 ml-2">
                       {order.items.map((item, idx) => (
                         <p key={idx} className="text-slate-700 text-sm">
-                          • {item.name} × {item.qnt} - ₹{item.price}
+                          • {item.name} × {item.qnt}  ₹{item.price}
                         </p>
                       ))}
                     </div>
