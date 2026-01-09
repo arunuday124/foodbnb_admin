@@ -39,7 +39,7 @@ function Setting_page() {
         // Load notifications only if not already loaded
         if (!dataLoadedRef.current.notifications) {
           const notifSnap = await getDoc(
-            doc(db, "Delivery Settings", "Notification")
+            doc(db, "deliverySetting", "notification")
           );
           if (notifSnap.exists()) {
             const data = notifSnap.data();
@@ -65,7 +65,7 @@ function Setting_page() {
         // Load menu settings only if not already loaded
         if (!dataLoadedRef.current.menu) {
           const menuSnap = await getDoc(
-            doc(db, "Delivery Settings", "menuSettting")
+            doc(db, "deliverySetting", "menuSettting")
           );
           if (menuSnap.exists()) {
             const data = menuSnap.data();
@@ -89,7 +89,7 @@ function Setting_page() {
         // Load delivery settings only if not already loaded
         if (!dataLoadedRef.current.delivery) {
           const deliverySnap = await getDoc(
-            doc(db, "Delivery Settings", "settings")
+            doc(db, "deliverySetting", "settings")
           );
           if (deliverySnap.exists()) {
             const data = deliverySnap.data();
@@ -139,13 +139,17 @@ function Setting_page() {
 
   const saveNotificationSettings = async () => {
     try {
-      await setDoc(doc(db, "Delivery Settings", "Notification"), {
-        newOrder: notifications.newOrders,
-        orderStatus: notifications.orderStatus,
-        lowStock: notifications.lowStock,
-        driverUpdate: notifications.driverUpdates,
-        weeklyReport: notifications.weeklyReports,
-      });
+      await setDoc(
+        doc(db, "deliverySetting", "notification"),
+        {
+          newOrder: notifications.newOrders,
+          orderStatus: notifications.orderStatus,
+          lowStock: notifications.lowStock,
+          driverUpdate: notifications.driverUpdates,
+          weeklyReport: notifications.weeklyReports,
+        },
+        { merge: true }
+      );
       toast.success("Notification settings saved successfully!");
     } catch (error) {
       console.error("Error saving notification settings:", error);
@@ -155,12 +159,16 @@ function Setting_page() {
 
   const saveMenuSettings = async () => {
     try {
-      await setDoc(doc(db, "Delivery Settings", "menuSettting"), {
-        autoDisable: menuSettings.autoDisable,
-        prepTime: menuSettings.displayPrepTime,
-        ratingMenu: menuSettings.showRatings,
-        taxRate: parseFloat(menuSettings.taxRate) || 0,
-      });
+      await setDoc(
+        doc(db, "deliverySetting", "menuSettting"),
+        {
+          autoDisable: menuSettings.autoDisable,
+          prepTime: menuSettings.displayPrepTime,
+          ratingMenu: menuSettings.showRatings,
+          taxRate: parseFloat(menuSettings.taxRate) || 0,
+        },
+        { merge: true }
+      );
       toast.success("Menu settings saved successfully!");
     } catch (error) {
       console.error("Error saving menu settings:", error);
@@ -170,14 +178,19 @@ function Setting_page() {
 
   const saveDeliverySettings = async () => {
     try {
-      await setDoc(doc(db, "Delivery Settings", "settings"), {
-        minimumOrderAmount: parseFloat(deliverySettings.minOrder) || 0,
-        deliveryFee: parseFloat(deliverySettings.deliveryFee) || 0,
-        "deliveryRadius (miles)":
-          parseFloat(deliverySettings.deliveryRadius) || 0,
-        averagePreparationTime: parseFloat(deliverySettings.avgPrepTime) || 0,
-        averageDeliveryTime: parseFloat(deliverySettings.avgDeliveryTime) || 0,
-      });
+      await setDoc(
+        doc(db, "deliverySetting", "settings"),
+        {
+          minimumOrderAmount: parseFloat(deliverySettings.minOrder) || 0,
+          deliveryFee: parseFloat(deliverySettings.deliveryFee) || 0,
+          "deliveryRadius (miles)":
+            parseFloat(deliverySettings.deliveryRadius) || 0,
+          averagePreparationTime: parseFloat(deliverySettings.avgPrepTime) || 0,
+          averageDeliveryTime:
+            parseFloat(deliverySettings.avgDeliveryTime) || 0,
+        },
+        { merge: true }
+      );
       toast.success("Delivery settings saved successfully!");
     } catch (error) {
       console.error("Error saving delivery settings:", error);
