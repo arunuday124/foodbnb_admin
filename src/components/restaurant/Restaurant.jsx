@@ -1,11 +1,8 @@
 import { MapPin, Star, Clock } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { MapPin, Star, Clock } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../Firebase";
 
-const RestaurantDisplay = () => {
 const RestaurantDisplay = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [allRestaurants, setAllRestaurants] = useState([]);
@@ -13,28 +10,21 @@ const RestaurantDisplay = () => {
   const [error, setError] = useState(null);
   const isMountedRef = useRef(true);
   const hasLoadedRef = useRef(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const isMountedRef = useRef(true);
-  const hasLoadedRef = useRef(false);
 
-  // Fetch restaurants from Firebase with proper cleanup
   // Fetch restaurants from Firebase with proper cleanup
   useEffect(() => {
-    isMountedRef.current = true;
-
     isMountedRef.current = true;
 
     const fetchRestaurants = async () => {
       // Prevent multiple fetches
       if (hasLoadedRef.current) return;
-      
+
       try {
         setLoading(true);
         setError(null);
 
         const querySnapshot = await getDocs(collection(db, "moms_kitchens"));
-        
+
         // Only update state if component is still mounted
         if (!isMountedRef.current) return;
 
@@ -45,11 +35,16 @@ const RestaurantDisplay = () => {
             name: data.name || "",
             ownerName: data.ownerName || "",
             cuisine: data.cuisine || "",
-            specialties: Array.isArray(data.specialties) ? data.specialties : [],
+            specialties: Array.isArray(data.specialties)
+              ? data.specialties
+              : [],
             description: data.description || "",
             locationName: data.locationName || "",
-            profileImage: data.profileImage || "https://i.pravatar.cc/150?img=1",
-            featuredDishImage: data.featuredDishImage || "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400",
+            profileImage:
+              data.profileImage || "https://i.pravatar.cc/150?img=1",
+            featuredDishImage:
+              data.featuredDishImage ||
+              "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400",
             rating: parseFloat(data.rating) || 0,
             priceForOne: data.priceForOne || 0,
             deliveryTime: data.deliveryTime || 0,
@@ -60,14 +55,10 @@ const RestaurantDisplay = () => {
             closeTime: data.closeTime || "N/A",
             phone: data.phone || "N/A",
             email: data.email || "N/A",
-            openTime: data.openTime || "N/A",
-            closeTime: data.closeTime || "N/A",
-            phone: data.phone || "N/A",
-            email: data.email || "N/A",
             revenue: parseFloat(data.revenue) || 0,
           };
         });
-        
+
         if (isMountedRef.current) {
           setAllRestaurants(restaurantsList);
           setLoading(false);
@@ -88,14 +79,7 @@ const RestaurantDisplay = () => {
       }
     };
 
-
     fetchRestaurants();
-
-    // Cleanup function
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []); // Empty dependency array - only run once
 
     // Cleanup function
     return () => {
@@ -126,11 +110,14 @@ const RestaurantDisplay = () => {
   const filteredRestaurants =
     activeFilter === "all"
       ? allRestaurants
-      : allRestaurants.filter((restaurant) => restaurant.status === activeFilter);
+      : allRestaurants.filter(
+          (restaurant) => restaurant.status === activeFilter
+        );
 
   const getFilterCount = (status) => {
     if (status === "all") return allRestaurants.length;
-    return allRestaurants.filter((restaurant) => restaurant.status === status).length;
+    return allRestaurants.filter((restaurant) => restaurant.status === status)
+      .length;
   };
 
   const getRatingColor = (rating) => {
@@ -159,8 +146,7 @@ const RestaurantDisplay = () => {
           <p className="text-gray-600">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             Retry
           </button>
         </div>
@@ -170,16 +156,13 @@ const RestaurantDisplay = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Mom's Kitchen Management
-            Mom's Kitchen Management
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Track and manage all registered Kitchens
             Track and manage all registered Kitchens
           </p>
         </div>
@@ -244,12 +227,10 @@ const RestaurantDisplay = () => {
         {/* Restaurants Grid */}
         {filteredRestaurants.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRestaurants.map((restaurant) => (
               <div
                 key={restaurant.id}
-                className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
-              >
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
                 {/* Featured Image */}
                 <div className="relative h-40 bg-gray-200 overflow-hidden">
                   <img
@@ -257,7 +238,8 @@ const RestaurantDisplay = () => {
                     alt={restaurant.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.target.src = "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400";
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400";
                     }}
                   />
                 </div>
@@ -280,15 +262,16 @@ const RestaurantDisplay = () => {
                           {restaurant.name || "Unknown Kitchen"}
                         </h3>
                         <p className="text-xs text-gray-500">
-                          {restaurant.ownerName ? `by ${restaurant.ownerName}` : "N/A"}
+                          {restaurant.ownerName
+                            ? `by ${restaurant.ownerName}`
+                            : "N/A"}
                         </p>
                       </div>
                     </div>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold uppercase whitespace-nowrap ml-2 ${getStatusColor(
                         restaurant.status
-                      )}`}
-                    >
+                      )}`}>
                       {getStatusLabel(restaurant.status)}
                     </span>
                   </div>
@@ -308,8 +291,7 @@ const RestaurantDisplay = () => {
                     <span
                       className={`font-semibold text-sm ${getRatingColor(
                         restaurant.rating
-                      )}`}
-                    >
+                      )}`}>
                       {restaurant.rating.toFixed(1)}
                     </span>
                     <span className="text-xs text-gray-500">
@@ -320,21 +302,24 @@ const RestaurantDisplay = () => {
                   {/* Cuisine & Specialties */}
                   <div className="mb-3">
                     <p className="text-xs font-semibold text-gray-700 mb-1">
-                      {restaurant.cuisine ? `Cuisine: ${restaurant.cuisine}` : "Cuisine: N/A"}
+                      {restaurant.cuisine
+                        ? `Cuisine: ${restaurant.cuisine}`
+                        : "Cuisine: N/A"}
                     </p>
                     {restaurant.specialties.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {restaurant.specialties.map((specialty, idx) => (
                           <span
                             key={idx}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
-                          >
+                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                             {specialty}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-500">No specialties listed</p>
+                      <p className="text-xs text-gray-500">
+                        No specialties listed
+                      </p>
                     )}
                   </div>
 
@@ -342,23 +327,6 @@ const RestaurantDisplay = () => {
                   <div className="flex items-start gap-2 text-sm text-gray-600 mb-3">
                     <MapPin size={16} className="mt-0.5 shrink-0" />
                     <p>{restaurant.locationName || "N/A"}</p>
-                    <p>{restaurant.locationName || "N/A"}</p>
-                  </div>
-
-                  {/* Info Row */}
-                  <div className="grid grid-cols-2 gap-3 py-3 border-y border-gray-200">
-                    <div>
-                      <p className="text-xs text-gray-500">Price per Order</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        ₹{restaurant.priceForOne || "0"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Delivery Time</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        {restaurant.deliveryTime || "0"} mins
-                      </p>
-                    </div>
                   </div>
 
                   {/* Info Row */}
@@ -384,8 +352,7 @@ const RestaurantDisplay = () => {
                         restaurant.isVeg
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
-                      }`}
-                    >
+                      }`}>
                       {restaurant.isVeg ? "🥗 Vegetarian" : "🍗 Non-Vegetarian"}
                     </span>
                     {restaurant.revenue > 0 && (
@@ -393,27 +360,6 @@ const RestaurantDisplay = () => {
                         Revenue: ₹{restaurant.revenue.toLocaleString()}
                       </span>
                     )}
-                    {restaurant.revenue > 0 && (
-                      <span className="text-xs text-gray-600 ml-auto">
-                        Revenue: ₹{restaurant.revenue.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Hours & Contact */}
-                  <div className="pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <Clock size={14} />
-                      <span className="text-xs">
-                        {restaurant.openTime} - {restaurant.closeTime}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">
-                      📞 {restaurant.phone}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      📧 {restaurant.email}
-                    </p>
                   </div>
 
                   {/* Hours & Contact */}

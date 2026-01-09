@@ -12,13 +12,6 @@ const firebaseConfig = {
   messagingSenderId: "217297623709",
   appId: "1:217297623709:web:990ff29bd2f1df66021274",
   measurementId: "G-NBGWX62336"
-  apiKey: "AIzaSyB2MAFvoaf_nWQIXncXtBrpTvpKn05vmRs",
-  authDomain: "foodbnb-10778.firebaseapp.com",
-  projectId: "foodbnb-10778",
-  storageBucket: "foodbnb-10778.firebasestorage.app",
-  messagingSenderId: "217297623709",
-  appId: "1:217297623709:web:990ff29bd2f1df66021274",
-  measurementId: "G-NBGWX62336"
 };
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
