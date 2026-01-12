@@ -1,33 +1,33 @@
-// import { useState } from "react";
 import { MapPin, Clock, UtensilsCrossed, Copy, Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
 
 const Orders = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-
   const [allOrders, setAllOrders] = useState([]);
-  const [copy, setCopy] = useState("");
   const [copiedId, setCopiedId] = useState(null);
   const [showToast, setShowToast] = useState(false);
 
-  //for copy text user id
+  // Copy text user id
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
-    setCopy(text);
     setCopiedId(text);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
 
-  //order data fetching from firebase
+  // Order data fetching from firebase with real-time updates
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "orders"));
+    let isMounted = true;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "orders"),
+      (querySnapshot) => {
+        if (!isMounted) return;
+
         const ordersList = querySnapshot.docs.map((doc) => {
           const data = doc.data();
           return {
@@ -42,13 +42,19 @@ const Orders = () => {
           };
         });
         setAllOrders(ordersList);
-        // console.log("Fetched orders:", ordersList);
-      } catch (error) {
+      },
+      (error) => {
+        if (!isMounted) return;
         console.error("Error fetching orders:", error);
       }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
     };
-    fetchOrders();
   }, []);
+
   const getStatusColor = (status) => {
     switch (status) {
       case "delivered":
@@ -203,7 +209,7 @@ const Orders = () => {
             />
           </div>
         </div>
-        {/* CHANGED: Using ternary operator to show orders or "No orders currently" message */}
+        {/* Orders Grid or Empty State */}
         {filteredOrders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredOrders.map((order) => (
@@ -288,11 +294,6 @@ const Orders = () => {
                     </p>
                   </div>
                 </div>
-
-                {/* View Details Button */}
-                {/* <button className="w-full mt-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
-                  • View Details
-                </button> */}
               </div>
             ))}
           </div>

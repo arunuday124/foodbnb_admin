@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Users } from "lucide-react";
-import { collection, getDocs, query, doc, getDoc } from "firebase/firestore";
-import { getCountFromServer } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../Firebase";
 
 // --- Sub-component for Number Animation ---
@@ -56,244 +55,256 @@ const Analytics = () => {
     { label: "Monthly", percentage: 0, count: 0, color: "bg-purple-500" },
   ]);
 
-  const fetchOrdersData = async () => {
-    try {
-      const ordersCollection = collection(db, "orders");
-      const allOrdersSnapshot = await getDocs(ordersCollection);
-
-      const monthData = {
-        Dec: { delivered: 0, count: 0 },
-        Jan: { delivered: 0, count: 0 },
-        Feb: { delivered: 0, count: 0 },
-        Mar: { delivered: 0, count: 0 },
-        Apr: { delivered: 0, count: 0 },
-        May: { delivered: 0, count: 0 },
-      };
-
-      let cancelledCount = 0;
-      let weeklyOrdersCount = 0;
-      let monthlyOrdersCount = 0;
-
-      const now = new Date();
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      allOrdersSnapshot.forEach((doc) => {
-        const orderData = doc.data();
-        const orderStatus = orderData.orderStatus;
-
-        // Count cancelled orders
-        if (orderStatus === "cancelled") {
-          cancelledCount++;
-        }
-
-        // Get order date for frequency calculation
-        const time = orderData.time;
-        let orderDate = null;
-        if (time) {
-          orderDate =
-            time.toDate instanceof Function ? time.toDate() : new Date(time);
-
-          // Count weekly orders (last 7 days)
-          if (orderDate >= oneWeekAgo) {
-            weeklyOrdersCount++;
-          }
-
-          // Count monthly orders (last 30 days)
-          if (orderDate >= oneMonthAgo) {
-            monthlyOrdersCount++;
-          }
-        }
-
-        // Only process delivered orders for revenue
-        if (orderStatus !== "delivered") {
-          return;
-        }
-
-        // Calculate total price for this order
-        let totalPrice = 0;
-
-        if (orderData.items && Array.isArray(orderData.items)) {
-          orderData.items.forEach((item) => {
-            const itemPrice = parseFloat(item.price) || 0;
-            const itemQnt = parseFloat(item.qnt) || 1;
-            totalPrice += itemPrice * itemQnt;
-          });
-        }
-
-        // Get month from time field
-        let month = "";
-        if (orderDate) {
-          const monthIndex = orderDate.getMonth();
-          const monthNames = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-          ];
-          month = monthNames[monthIndex];
-        }
-
-        // Add to month data if month exists in our tracking
-        if (monthData[month] !== undefined) {
-          monthData[month].delivered += totalPrice;
-          monthData[month].count += 1;
-        }
-      });
-
-      setCancelledOrders(cancelledCount);
-
-      // Calculate order frequency percentages with base value of 50
-      const baseValue = 50;
-      const weeklyPercentage = Math.min(
-        (weeklyOrdersCount / baseValue) * 100,
-        100
-      );
-      const monthlyPercentage = Math.min(
-        (monthlyOrdersCount / baseValue) * 100,
-        100
-      );
-
-      setOrderFrequency([
-        {
-          label: "Weekly",
-          percentage: weeklyPercentage,
-          count: weeklyOrdersCount,
-          color: "bg-purple-500",
-        },
-        {
-          label: "Monthly",
-          percentage: monthlyPercentage,
-          count: monthlyOrdersCount,
-          color: "bg-purple-500",
-        },
-      ]);
-
-      // Calculate percentages with base value of 10000
-      const revenueBaseValue = 10000;
-
-      const updatedRevenueData = [
-        {
-          month: "Dec",
-          revenue: `₹${Math.round(monthData.Dec.delivered).toLocaleString()}`,
-          delivered: monthData.Dec.delivered,
-          orders: `${monthData.Dec.count} orders`,
-          percentage: Math.min(
-            (monthData.Dec.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-        {
-          month: "Jan",
-          revenue: `₹${Math.round(monthData.Jan.delivered).toLocaleString()}`,
-          delivered: monthData.Jan.delivered,
-          orders: `${monthData.Jan.count} orders`,
-          percentage: Math.min(
-            (monthData.Jan.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-        {
-          month: "Feb",
-          revenue: `₹${Math.round(monthData.Feb.delivered).toLocaleString()}`,
-          delivered: monthData.Feb.delivered,
-          orders: `${monthData.Feb.count} orders`,
-          percentage: Math.min(
-            (monthData.Feb.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-        {
-          month: "Mar",
-          revenue: `₹${Math.round(monthData.Mar.delivered).toLocaleString()}`,
-          delivered: monthData.Mar.delivered,
-          orders: `${monthData.Mar.count} orders`,
-          percentage: Math.min(
-            (monthData.Mar.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-        {
-          month: "Apr",
-          revenue: `₹${Math.round(monthData.Apr.delivered).toLocaleString()}`,
-          delivered: monthData.Apr.delivered,
-          orders: `${monthData.Apr.count} orders`,
-          percentage: Math.min(
-            (monthData.Apr.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-        {
-          month: "May",
-          revenue: `₹${Math.round(monthData.May.delivered).toLocaleString()}`,
-          delivered: monthData.May.delivered,
-          orders: `${monthData.May.count} orders`,
-          percentage: Math.min(
-            (monthData.May.delivered / revenueBaseValue) * 100,
-            100
-          ),
-        },
-      ];
-
-      setRevenueData(updatedRevenueData);
-
-      const totalDeliveredRevenue = Object.values(monthData).reduce(
-        (sum, month) => sum + month.delivered,
-        0
-      );
-
-      setTotalRevenue(Math.round(totalDeliveredRevenue));
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    }
-  };
-
-  const fetchTotalUsers = async () => {
-    try {
-      // Query the users collection
-      const q = query(collection(db, "users"));
-      const snapshot = await getCountFromServer(q);
-
-      const totalCust = snapshot.data().count; // Total number of user documents
-      console.log("Total users documents:", totalCust);
-
-      // Get first-time customers from a single stats document instead of looping all users
-      // Assuming you already maintain a stats doc at 'stats/app'
-      const statsRef = doc(db, "stats", "app");
-      const statsSnap = await getDoc(statsRef);
-
-      let firstTimeCount = 0;
-      if (statsSnap.exists()) {
-        const statsData = statsSnap.data();
-        firstTimeCount = statsData.firstTimeUsers || 0;
-      }
-
-      console.log("First time customers:", firstTimeCount);
-
-      setFirstTimeCustomers(firstTimeCount);
-      setTotalCustomers(totalCust);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      setLoading(false);
-    }
-  };
-
+  // Real-time listener for orders
   useEffect(() => {
-    const fetchData = async () => {
-      await Promise.all([fetchTotalUsers(), fetchOrdersData()]);
-      setIsLoaded(true);
-    };
+    let isMounted = true;
 
-    fetchData();
+    const unsubscribe = onSnapshot(
+      collection(db, "orders"),
+      (snapshot) => {
+        if (!isMounted) return;
+
+        const monthData = {
+          Dec: { delivered: 0, count: 0 },
+          Jan: { delivered: 0, count: 0 },
+          Feb: { delivered: 0, count: 0 },
+          Mar: { delivered: 0, count: 0 },
+          Apr: { delivered: 0, count: 0 },
+          May: { delivered: 0, count: 0 },
+        };
+
+        let cancelledCount = 0;
+        let weeklyOrdersCount = 0;
+        let monthlyOrdersCount = 0;
+
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        snapshot.forEach((doc) => {
+          const orderData = doc.data();
+          const orderStatus = (orderData.orderStatus || "").toLowerCase();
+
+          // Count cancelled orders (check for both "cancelled" and "Cancelled")
+          if (orderStatus === "cancelled") {
+            cancelledCount++;
+          }
+
+          // Get order date for frequency calculation
+          const time = orderData.time;
+          let orderDate = null;
+          if (time) {
+            orderDate =
+              time.toDate instanceof Function ? time.toDate() : new Date(time);
+
+            // Count weekly orders (last 7 days)
+            if (orderDate >= oneWeekAgo) {
+              weeklyOrdersCount++;
+            }
+
+            // Count monthly orders (last 30 days)
+            if (orderDate >= oneMonthAgo) {
+              monthlyOrdersCount++;
+            }
+          }
+
+          // Only process delivered orders for revenue
+          if (orderStatus !== "delivered") {
+            return;
+          }
+
+          // Calculate total price for this order
+          let totalPrice = 0;
+
+          if (orderData.items && Array.isArray(orderData.items)) {
+            orderData.items.forEach((item) => {
+              const itemPrice = parseFloat(item.price) || 0;
+              const itemQnt = parseFloat(item.qnt) || 1;
+              totalPrice += itemPrice * itemQnt;
+            });
+          }
+
+          // Get month from time field
+          let month = "";
+          if (orderDate) {
+            const monthIndex = orderDate.getMonth();
+            const monthNames = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ];
+            month = monthNames[monthIndex];
+          }
+
+          // Add to month data if month exists in our tracking
+          if (monthData[month] !== undefined) {
+            monthData[month].delivered += totalPrice;
+            monthData[month].count += 1;
+          }
+        });
+
+        setCancelledOrders(cancelledCount);
+
+        // Calculate order frequency percentages with base value of 50
+        const baseValue = 50;
+        const weeklyPercentage = Math.min(
+          (weeklyOrdersCount / baseValue) * 100,
+          100
+        );
+        const monthlyPercentage = Math.min(
+          (monthlyOrdersCount / baseValue) * 100,
+          100
+        );
+
+        setOrderFrequency([
+          {
+            label: "Weekly",
+            percentage: weeklyPercentage,
+            count: weeklyOrdersCount,
+            color: "bg-purple-500",
+          },
+          {
+            label: "Monthly",
+            percentage: monthlyPercentage,
+            count: monthlyOrdersCount,
+            color: "bg-purple-500",
+          },
+        ]);
+
+        // Calculate percentages with base value of 10000
+        const revenueBaseValue = 10000;
+
+        const updatedRevenueData = [
+          {
+            month: "Dec",
+            revenue: `₹${Math.round(monthData.Dec.delivered).toLocaleString()}`,
+            delivered: monthData.Dec.delivered,
+            orders: `${monthData.Dec.count} orders`,
+            percentage: Math.min(
+              (monthData.Dec.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+          {
+            month: "Jan",
+            revenue: `₹${Math.round(monthData.Jan.delivered).toLocaleString()}`,
+            delivered: monthData.Jan.delivered,
+            orders: `${monthData.Jan.count} orders`,
+            percentage: Math.min(
+              (monthData.Jan.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+          {
+            month: "Feb",
+            revenue: `₹${Math.round(monthData.Feb.delivered).toLocaleString()}`,
+            delivered: monthData.Feb.delivered,
+            orders: `${monthData.Feb.count} orders`,
+            percentage: Math.min(
+              (monthData.Feb.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+          {
+            month: "Mar",
+            revenue: `₹${Math.round(monthData.Mar.delivered).toLocaleString()}`,
+            delivered: monthData.Mar.delivered,
+            orders: `${monthData.Mar.count} orders`,
+            percentage: Math.min(
+              (monthData.Mar.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+          {
+            month: "Apr",
+            revenue: `₹${Math.round(monthData.Apr.delivered).toLocaleString()}`,
+            delivered: monthData.Apr.delivered,
+            orders: `${monthData.Apr.count} orders`,
+            percentage: Math.min(
+              (monthData.Apr.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+          {
+            month: "May",
+            revenue: `₹${Math.round(monthData.May.delivered).toLocaleString()}`,
+            delivered: monthData.May.delivered,
+            orders: `${monthData.May.count} orders`,
+            percentage: Math.min(
+              (monthData.May.delivered / revenueBaseValue) * 100,
+              100
+            ),
+          },
+        ];
+
+        setRevenueData(updatedRevenueData);
+
+        const totalDeliveredRevenue = Object.values(monthData).reduce(
+          (sum, month) => sum + month.delivered,
+          0
+        );
+
+        setTotalRevenue(Math.round(totalDeliveredRevenue));
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching orders:", error);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Real-time listener for users (total customers and first-time customers)
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "users"),
+      (snapshot) => {
+        if (!isMounted) return;
+
+        const totalCount = snapshot.size;
+
+        // Count users with noOfOrders === 0 or noOfOrders === 1
+        let firstTimeCount = 0;
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          const noOfOrders = userData.noOfOrders || 0;
+
+          if (noOfOrders === 0 || noOfOrders === 1) {
+            firstTimeCount++;
+          }
+        });
+
+        setTotalCustomers(totalCount);
+        setFirstTimeCustomers(firstTimeCount);
+        setLoading(false);
+        setIsLoaded(true);
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching users:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const statsCards = [

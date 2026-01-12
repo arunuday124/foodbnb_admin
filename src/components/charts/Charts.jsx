@@ -9,20 +9,9 @@ import {
   Star,
 } from "lucide-react";
 
-import { collection, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
-
-// Global cache to prevent redundant Firebase calls (persists across route changes)
-let dataCache = {
-  revenue: null,
-  orders: null,
-  users: null,
-  recentOrders: null,
-  reviews: null,
-  lastFetch: null,
-  hasAnimated: false, // Track if animation has run
-};
 
 // ============================================
 // AnimatedNumber Component
@@ -33,18 +22,9 @@ const AnimatedNumber = ({
   prefix = "",
   suffix = "",
 }) => {
-  const [displayValue, setDisplayValue] = useState(() => {
-    // Initialize with final value if already animated, otherwise start at 0
-    return dataCache.hasAnimated ? value : 0;
-  });
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    // Skip animation if data is from cache (already animated before)
-    if (dataCache.hasAnimated) {
-      return;
-    }
-
-    // Animate only on fresh data fetch
     let startTime;
     let animationId;
 
@@ -69,13 +49,6 @@ const AnimatedNumber = ({
       }
     };
   }, [value, duration]);
-
-  // Mark animation as complete after first render cycle
-  useEffect(() => {
-    if (!dataCache.hasAnimated && displayValue === value) {
-      dataCache.hasAnimated = true;
-    }
-  }, [displayValue, value]);
 
   return (
     <span>
@@ -152,43 +125,36 @@ export default function DashboardOverview() {
     );
   };
 
-  // Fetch all data from Firebase with caching
+  // Real-time listener for orders
   useEffect(() => {
-    const fetchAllData = async () => {
-      // Check if data is already cached
-      if (dataCache.lastFetch) {
-        setTotalRevenue(dataCache.revenue);
-        setTotalOrders(dataCache.orders);
-        setTotalUsers(dataCache.users);
-        setRecentOrders(dataCache.recentOrders);
-        setTopReviews(dataCache.reviews);
-        setLoading(false);
-        return;
-      }
+    let isMounted = true;
 
-      try {
-        setLoading(true);
+    const unsubscribe = onSnapshot(
+      collection(db, "orders"),
+      (snapshot) => {
+        if (!isMounted) return;
 
-        // Fetch orders data (single call)
-        const ordersDocs = await getDocs(collection(db, "orders"));
-        const ordersData = ordersDocs.docs.map((doc) => ({
+        const ordersData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
         // Calculate total revenue (only from delivered orders)
         let revenue = 0;
-        let totalOrderQuantity = 0;
+        let deliveredOrdersCount = 0;
 
         ordersData.forEach((order) => {
+          const orderStatus = (order.orderStatus || "").toLowerCase();
+
           if (
-            order.orderStatus === "delivered" &&
+            orderStatus === "delivered" &&
             order.items &&
             Array.isArray(order.items)
           ) {
+            deliveredOrdersCount++; // Count number of delivered orders
+
             order.items.forEach((item) => {
               revenue += (item.price || 0) * (item.qnt || 1);
-              totalOrderQuantity += item.qnt || 1;
             });
           }
         });
@@ -218,46 +184,77 @@ export default function DashboardOverview() {
                 )
               : 0,
           }))
-          .sort((a, b) => b.time.toDate() - a.time.toDate()); // Sort by most recent
+          .sort((a, b) => b.time.toDate() - a.time.toDate());
 
-        // Fetch users data (single call)
-        const usersDocs = await getDocs(collection(db, "users"));
-        const usersCount = usersDocs.docs.length;
+        setTotalRevenue(revenue);
+        setTotalOrders(deliveredOrdersCount);
+        setRecentOrders(recentOrdersList);
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching orders:", error);
+      }
+    );
 
-        // Fetch reviews data (single call)
-        const reviewsDocs = await getDocs(collection(db, "reviews"));
-        const reviewsData = reviewsDocs.docs.map((doc) => ({
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Real-time listener for users
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "users"),
+      (snapshot) => {
+        if (!isMounted) return;
+        setTotalUsers(snapshot.size);
+        setLoading(false);
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching users:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Real-time listener for reviews
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "reviews"),
+      (snapshot) => {
+        if (!isMounted) return;
+
+        const reviewsData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        // Cache the data
-        dataCache = {
-          revenue,
-          orders: totalOrderQuantity,
-          users: usersCount,
-          recentOrders: recentOrdersList,
-          reviews: reviewsData,
-          lastFetch: new Date(),
-        };
-
-        // Update state
-        setTotalRevenue(revenue);
-        setTotalOrders(totalOrderQuantity);
-        setTotalUsers(usersCount);
-        setRecentOrders(recentOrdersList);
         setTopReviews(reviewsData);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setLoading(false);
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching reviews:", error);
       }
-    };
+    );
 
-    fetchAllData();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  // Dashboard Statistics Data (removed Active Users card)
+  // Dashboard Statistics Data
   const stats = [
     {
       title: "Total Revenue",
@@ -307,14 +304,15 @@ export default function DashboardOverview() {
 
   // Status badge color helper
   const getStatusColor = (status) => {
-    switch (status) {
+    const normalizedStatus = (status || "").toLowerCase();
+    switch (normalizedStatus) {
       case "delivered":
         return "text-green-600 font-semibold";
       case "pending":
         return "text-yellow-600 font-semibold";
-      case "processing":
+      case "preparing":
         return "text-blue-600 font-semibold";
-      case "canceled":
+      case "cancelled":
         return "text-red-600 font-semibold";
       default:
         return "text-slate-600 font-semibold";
@@ -367,7 +365,7 @@ export default function DashboardOverview() {
                 recentOrders.map((order) => (
                   <div
                     key={order.id}
-                   className="border-b border-slate-300 mb-4 last:mb-0  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-300 mb-4 last:mb-0  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold text-base">
