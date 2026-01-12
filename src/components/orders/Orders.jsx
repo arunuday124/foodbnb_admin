@@ -258,7 +258,7 @@ const Orders = () => {
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
-                    <p className="line-clamp-2">{order.resturent}</p>
+                    <p className="line-clamp-2">{order.kitchenName}</p>
                   </div>
                 </div>
 
