@@ -462,7 +462,7 @@ const Delivery = () => {
             onClick={() => setFilterStatus("inactive")}
             className={`px-4 py-3 rounded-lg font-medium transition-colors ${
               filterStatus === "inactive"
-                ? "bg-slate-600 text-white"
+                ? "bg-red-500 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}>
             Inactive
