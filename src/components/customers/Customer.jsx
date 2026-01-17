@@ -159,7 +159,7 @@ const Customer = () => {
           placeholder="Search by name, email, or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 text-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full pl-12 pr-4 py-4 text-slate-700 rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
         />
       </div>
 
@@ -185,7 +185,8 @@ const Customer = () => {
             filteredCustomers.map((customer) => (
               <div
                 key={customer.id}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-slate-200">
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-slate-200"
+              >
                 <div className="flex items-center mb-4">
                   {customer.photoURL ? (
                     <img
@@ -195,7 +196,8 @@ const Customer = () => {
                     />
                   ) : (
                     <div
-                      className={`w-16 h-16 rounded-full ${customer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}>
+                      className={`w-16 h-16 rounded-full ${customer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}
+                    >
                       {customer.initials}
                     </div>
                   )}
