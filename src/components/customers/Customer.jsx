@@ -354,7 +354,7 @@ const Customer = () => {
 
                 <button
                   onClick={() => handleViewDetails(customer)}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                  className="w-full h-10 bg-orange-500 hover:bg-orange-600 text-white font-semibold  rounded-lg transition-colors ">
                   View Details
                 </button>
               </div>
@@ -372,7 +372,7 @@ const Customer = () => {
       {selectedCustomer && (
         <div className="fixed inset-0  bg-opacity-10 backdrop-blur-[1px] flex items-center justify-center z-50 p-4">
           <div className="bg-stone-100 rounded-2xl shadow-2xl max-w-xl w-[70vh] max-h-[90vh] overflow-y-auto mt-10">
-            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+            <div className="sticky top-5 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-800 mt-5">
                 Customer Details
               </h2>
