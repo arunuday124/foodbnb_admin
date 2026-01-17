@@ -121,7 +121,6 @@ export default function DashboardOverview() {
       { label: "Week 2", thisWeek: 1205, lastWeek: 1024 },
       { label: "Week 3", thisWeek: 1456, lastWeek: 1289 },
       { label: "Week 4", thisWeek: 1678, lastWeek: 1445 },
-      { label: "Week 5", thisWeek: 1523, lastWeek: 1356 },
     ],
     year: [
       { label: "Jan", thisWeek: 8920, lastWeek: 7560 },
@@ -184,7 +183,8 @@ export default function DashboardOverview() {
             <span
               className={`text-sm font-medium ${
                 isNegative ? "text-red-800" : "text-green-800"
-              }`}>
+              }`}
+            >
               {change}
             </span>
             <span className="text-black text-sm">vs last month</span>
@@ -249,7 +249,7 @@ export default function DashboardOverview() {
             totalPrice: order.items
               ? order.items.reduce(
                   (sum, item) => sum + (item.price || 0) * (item.qnt || 1),
-                  0
+                  0,
                 )
               : 0,
           }))
@@ -262,7 +262,7 @@ export default function DashboardOverview() {
       (error) => {
         if (!isMounted) return;
         console.error("Error fetching orders:", error);
-      }
+      },
     );
 
     return () => {
@@ -286,7 +286,7 @@ export default function DashboardOverview() {
         if (!isMounted) return;
         console.error("Error fetching users:", error);
         setLoading(false);
-      }
+      },
     );
 
     return () => {
@@ -314,7 +314,7 @@ export default function DashboardOverview() {
       (error) => {
         if (!isMounted) return;
         console.error("Error fetching reviews:", error);
-      }
+      },
     );
 
     return () => {
@@ -433,7 +433,8 @@ export default function DashboardOverview() {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium">
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
+              >
                 {timeframe === "day" && "This day"}
                 {timeframe === "week" && "This week"}
                 {timeframe === "month" && "This month"}
@@ -459,7 +460,8 @@ export default function DashboardOverview() {
                         timeframe === option.value
                           ? "bg-blue-50 text-blue-600 font-semibold"
                           : "text-slate-700"
-                      }`}>
+                      }`}
+                    >
                       {option.label}
                     </button>
                   ))}
@@ -488,7 +490,8 @@ export default function DashboardOverview() {
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart
               data={data}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="colorThisWeek" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
@@ -554,7 +557,8 @@ export default function DashboardOverview() {
                 recentOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="border-b border-slate-300 mb-4 last:mb-0  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-300 mb-4 last:mb-0  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold text-base">
@@ -584,8 +588,9 @@ export default function DashboardOverview() {
                     <div className="flex justify-between items-center">
                       <span
                         className={`text-sm ${getStatusColor(
-                          order.orderStatus
-                        )}`}>
+                          order.orderStatus,
+                        )}`}
+                      >
                         {order.orderStatus.toUpperCase()}
                       </span>
                       <span className="text-slate-500 text-xs font-medium">
@@ -615,7 +620,8 @@ export default function DashboardOverview() {
                 <select
                   value={starFilter}
                   onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none appearance-none pr-8">
+                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none appearance-none pr-8"
+                >
                   <option value="all">All Stars</option>
                   <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
                   <option value="4">⭐⭐⭐⭐ 4 Stars</option>
@@ -629,7 +635,8 @@ export default function DashboardOverview() {
                     className="w-4 h-4 text-black"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24">
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -651,7 +658,8 @@ export default function DashboardOverview() {
                 filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-slate-300 pb-4  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-300 pb-4  hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h3 className="text-black font-semibold text-lg mb-1">
