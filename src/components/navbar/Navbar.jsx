@@ -28,7 +28,7 @@ const Navbar = ({ showMenuButton, onMenuClick, sidebarOpen }) => {
         
       </div>
 
-      <div className="flex items-center gap-3.5">
+      {/* <div className="flex items-center gap-3.5">
         <div className="relative flex h-10 items-center min-w-0">
           <button
             type="button"
@@ -66,7 +66,7 @@ const Navbar = ({ showMenuButton, onMenuClick, sidebarOpen }) => {
           aria-label="Profile">
           <User size={18} strokeWidth={2.2} />
         </div>
-      </div>
+      </div> */}
     </header>
   );
 };
