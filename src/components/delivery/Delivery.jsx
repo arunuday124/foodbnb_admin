@@ -8,6 +8,8 @@ import {
   Award,
   CreditCard,
   Search,
+  Map as MapIcon,
+  X,
 } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
@@ -34,12 +36,13 @@ const deliveryCache = {
 const Delivery = () => {
   const [drivers, setDrivers] = useState(deliveryCache.drivers);
   const [activeOrdersCount, setActiveOrdersCount] = useState(
-    deliveryCache.activeOrdersCount
+    deliveryCache.activeOrdersCount,
   );
   const [loading, setLoading] = useState(deliveryCache.drivers.length === 0);
   const [lastFetch, setLastFetch] = useState(deliveryCache.lastFetch);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
+  const [showMap, setShowMap] = useState(false);
 
   const [lastVisibleActive, setLastVisibleActive] = useState(null);
   const [lastVisibleInactive, setLastVisibleInactive] = useState(null);
@@ -58,13 +61,13 @@ const Delivery = () => {
         deliveryCache.activeOrdersCount = newOrdersCount;
       if (newLastFetch !== undefined) deliveryCache.lastFetch = newLastFetch;
     },
-    []
+    [],
   );
 
   // Memoized calculations
   const stats = useMemo(() => {
     const activeDrivers = drivers.filter(
-      (d) => (d.activeOrders || 0) > 0
+      (d) => (d.activeOrders || 0) > 0,
     ).length;
     const totalDeliveries = drivers.length;
     const avgRating =
@@ -94,7 +97,7 @@ const Delivery = () => {
         collection(db, "riders"),
         where("activeOrders", ">", 0),
         orderBy("activeOrders", "desc"),
-        limit(ITEMS_PER_PAGE)
+        limit(ITEMS_PER_PAGE),
       );
       const activeSnapshot = await getDocs(activeQuery);
       const activeDriversList = activeSnapshot.docs.map((doc) => ({
@@ -105,7 +108,7 @@ const Delivery = () => {
 
       if (activeSnapshot.docs.length > 0) {
         setLastVisibleActive(
-          activeSnapshot.docs[activeSnapshot.docs.length - 1]
+          activeSnapshot.docs[activeSnapshot.docs.length - 1],
         );
         setHasMoreActive(activeSnapshot.docs.length === ITEMS_PER_PAGE);
       } else {
@@ -116,7 +119,7 @@ const Delivery = () => {
       const inactiveQuery = query(
         collection(db, "riders"),
         orderBy("name"),
-        limit(ITEMS_PER_PAGE * 3)
+        limit(ITEMS_PER_PAGE * 3),
       );
       const inactiveSnapshot = await getDocs(inactiveQuery);
       const inactiveDriversList = inactiveSnapshot.docs
@@ -130,7 +133,7 @@ const Delivery = () => {
         const lastInactiveDriver =
           inactiveDriversList[inactiveDriversList.length - 1];
         const lastDoc = inactiveSnapshot.docs.find(
-          (doc) => doc.id === lastInactiveDriver.id
+          (doc) => doc.id === lastInactiveDriver.id,
         );
         setLastVisibleInactive(lastDoc);
         setHasMoreInactive(inactiveSnapshot.docs.length === ITEMS_PER_PAGE * 3);
@@ -171,11 +174,11 @@ const Delivery = () => {
               }
             } else if (change.type === "modified") {
               updatedDrivers = updatedDrivers.map((d) =>
-                d.id === driverData.id ? driverData : d
+                d.id === driverData.id ? driverData : d,
               );
             } else if (change.type === "removed") {
               updatedDrivers = updatedDrivers.filter(
-                (d) => d.id !== driverData.id
+                (d) => d.id !== driverData.id,
               );
             }
           });
@@ -190,14 +193,14 @@ const Delivery = () => {
       },
       (error) => {
         console.error("Error in riders listener:", error);
-      }
+      },
     );
 
     // Orders listener with compound query
     const ordersUnsubscribe = onSnapshot(
       query(
         collection(db, "orders"),
-        where("orderStatus", "in", ["preparing", "in transit", "transit"])
+        where("orderStatus", "in", ["preparing", "in transit", "transit"]),
       ),
       (snapshot) => {
         const count = snapshot.size;
@@ -210,7 +213,7 @@ const Delivery = () => {
       },
       (error) => {
         console.error("Error in orders listener:", error);
-      }
+      },
     );
 
     deliveryCache.unsubscribers = [ridersUnsubscribe, ordersUnsubscribe];
@@ -254,7 +257,7 @@ const Delivery = () => {
         where("activeOrders", ">", 0),
         orderBy("activeOrders", "desc"),
         startAfter(lastVisibleActive),
-        limit(ITEMS_PER_PAGE)
+        limit(ITEMS_PER_PAGE),
       );
       const activeSnapshot = await getDocs(activeQuery);
       const newDrivers = activeSnapshot.docs.map((doc) => ({
@@ -269,7 +272,7 @@ const Delivery = () => {
           return updated;
         });
         setLastVisibleActive(
-          activeSnapshot.docs[activeSnapshot.docs.length - 1]
+          activeSnapshot.docs[activeSnapshot.docs.length - 1],
         );
         setHasMoreActive(newDrivers.length === ITEMS_PER_PAGE);
       } else {
@@ -292,7 +295,7 @@ const Delivery = () => {
         collection(db, "riders"),
         orderBy("name"),
         startAfter(lastVisibleInactive),
-        limit(ITEMS_PER_PAGE * 3)
+        limit(ITEMS_PER_PAGE * 3),
       );
       const inactiveSnapshot = await getDocs(inactiveQuery);
       const newDrivers = inactiveSnapshot.docs
@@ -308,7 +311,7 @@ const Delivery = () => {
         });
         const lastInactiveDriver = newDrivers[newDrivers.length - 1];
         const lastDoc = inactiveSnapshot.docs.find(
-          (doc) => doc.id === lastInactiveDriver.id
+          (doc) => doc.id === lastInactiveDriver.id,
         );
         setLastVisibleInactive(lastDoc);
         setHasMoreInactive(inactiveSnapshot.docs.length === ITEMS_PER_PAGE * 3);
@@ -338,12 +341,12 @@ const Delivery = () => {
 
   const activeFilteredDrivers = useMemo(
     () => filteredDrivers.filter((d) => (d.activeOrders || 0) > 0),
-    [filteredDrivers]
+    [filteredDrivers],
   );
 
   const inactiveFilteredDrivers = useMemo(
     () => filteredDrivers.filter((d) => (d.activeOrders || 0) === 0),
-    [filteredDrivers]
+    [filteredDrivers],
   );
 
   if (loading) {
@@ -434,6 +437,7 @@ const Delivery = () => {
         </div>
       </div>
 
+      {/* Search Bar & Map Toggle */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search
@@ -455,7 +459,8 @@ const Delivery = () => {
               filterStatus === "active"
                 ? "bg-green-600 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             Active
           </button>
           <button
@@ -464,11 +469,30 @@ const Delivery = () => {
               filterStatus === "inactive"
                 ? "bg-red-500 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             Inactive
+          </button>
+          <button
+            onClick={() => setShowMap(!showMap)}
+            className={`px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              showMap
+                ? "bg-blue-600 text-white"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            <MapIcon size={18} />
+            Map
           </button>
         </div>
       </div>
+
+      {/* Map Section */}
+      {showMap && (
+        <div className="mb-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <DeliveryMap drivers={drivers} />
+        </div>
+      )}
 
       {filterStatus === "active" && activeFilteredDrivers.length > 0 && (
         <div className="mb-8">
@@ -485,7 +509,8 @@ const Delivery = () => {
               <button
                 onClick={loadMoreActive}
                 disabled={loadingMore}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+              >
                 {loadingMore ? "Loading..." : "View More Active Drivers"}
               </button>
             </div>
@@ -508,7 +533,8 @@ const Delivery = () => {
               <button
                 onClick={loadMoreInactive}
                 disabled={loadingMore}
-                className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+              >
                 {loadingMore ? "Loading..." : "View More Inactive Drivers"}
               </button>
             </div>
@@ -525,6 +551,149 @@ const Delivery = () => {
   );
 };
 
+// Delivery Map Component
+const DeliveryMap = ({ drivers }) => {
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+
+  useEffect(() => {
+    // Dynamically load Leaflet CSS
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href =
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+    document.head.appendChild(link);
+
+    // Dynamically load Leaflet JS
+    const script = document.createElement("script");
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    script.async = true;
+    script.onload = () => {
+      if (mapContainer.current && !map.current) {
+        // Calculate center from drivers with latitude/longitude
+        let centerLat = 23.735;
+        let centerLng = 92.076;
+        let zoomLevel = 10;
+
+        if (drivers.length > 0) {
+          const activeDrivers = drivers.filter(
+            (d) => (d.activeOrders || 0) > 0,
+          );
+          if (activeDrivers.length > 0) {
+            const driverWithCoords = activeDrivers.find(
+              (d) => d.latitude && d.longitude,
+            );
+            if (driverWithCoords) {
+              centerLat = parseFloat(driverWithCoords.latitude);
+              centerLng = parseFloat(driverWithCoords.longitude);
+              zoomLevel = 13;
+            }
+          }
+        }
+
+        // Initialize map
+        map.current = window.L.map(mapContainer.current).setView(
+          [centerLat, centerLng],
+          zoomLevel,
+        );
+
+        // Add OpenStreetMap tile layer
+        window.L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+          },
+        ).addTo(map.current);
+
+        // Add markers for active drivers using currentLocation
+        drivers.forEach((driver) => {
+          if ((driver.activeOrders || 0) > 0 && driver.currentLocation) {
+            let lat, lng;
+
+            // Handle different currentLocation formats
+            if (typeof driver.currentLocation === "object") {
+              // If it's a GeoPoint or object with latitude/longitude
+              lat =
+                driver.currentLocation.latitude || driver.currentLocation.lat;
+              lng =
+                driver.currentLocation.longitude || driver.currentLocation.lng;
+            } else if (typeof driver.currentLocation === "string") {
+              // If it's a string like "23.735,92.076"
+              const coords = driver.currentLocation.split(",");
+              lat = parseFloat(coords[0]);
+              lng = parseFloat(coords[1]);
+            }
+
+            // Validate coordinates
+            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+              const markerColor = driver.color || "bg-purple-500";
+              const colorClass = markerColor.replace("bg-", "");
+
+              const markerHTML = `
+                <div class="flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-bold shadow-md" style="background-color: ${getColorValue(
+                  colorClass,
+                )};">
+                  ${driver.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()}
+                </div>
+              `;
+
+              const customIcon = window.L.divIcon({
+                html: markerHTML,
+                iconSize: [32, 32],
+                className: "custom-marker",
+              });
+
+              window.L.marker([lat, lng], { icon: customIcon })
+                .bindPopup(
+                  `<div class="p-2">
+                    <h4 class="font-bold text-sm">${driver.name}</h4>
+                    <p class="text-xs text-gray-600">${driver.vechicleType || "N/A"}</p>
+                    <p class="text-xs font-semibold mt-1">Delivering: ${driver.activeOrders || 0} orders</p>
+                    <p class="text-xs text-gray-500 mt-1">📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+                  </div>`,
+                )
+                .addTo(map.current);
+            }
+          }
+        });
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [drivers]);
+
+  return (
+    <div ref={mapContainer} className="w-full" style={{ minHeight: "400px" }} />
+  );
+};
+
+// Helper function to convert Tailwind color classes to actual colors
+const getColorValue = (colorClass) => {
+  const colorMap = {
+    "purple-500": "#a855f7",
+    "blue-500": "#3b82f6",
+    "green-500": "#22c55e",
+    "red-500": "#ef4444",
+    "yellow-500": "#eab308",
+    "pink-500": "#ec4899",
+    "indigo-500": "#6366f1",
+  };
+  return colorMap[colorClass] || "#a855f7";
+};
+
 const DriverCard = ({ driver }) => (
   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 transition-all hover:shadow-md">
     <div className="flex items-start justify-between mb-4">
@@ -532,7 +701,8 @@ const DriverCard = ({ driver }) => (
         <div
           className={`${
             driver.color || "bg-purple-500"
-          } w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md`}>
+          } w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md`}
+        >
           {driver.name
             .split(" ")
             .map((n) => n[0])
@@ -553,7 +723,8 @@ const DriverCard = ({ driver }) => (
           (driver.activeOrders || 0) > 0
             ? "bg-green-100 text-green-700"
             : "bg-slate-100 text-slate-600"
-        } text-xs font-medium rounded-full`}>
+        } text-xs font-medium rounded-full`}
+      >
         {(driver.activeOrders || 0) > 0 ? "Active" : "Inactive"}
       </span>
     </div>
@@ -597,13 +768,15 @@ const DriverCard = ({ driver }) => (
         (driver.activeOrders || 0) > 0
           ? "p-3 bg-orange-50 border border-orange-200 rounded-lg"
           : "p-3 bg-gray-100 border border-gray-200 rounded-lg"
-      }>
+      }
+    >
       <p
         className={
           (driver.activeOrders || 0) > 0
             ? "text-sm text-orange-700 font-medium"
             : "text-sm text-gray-400 font-medium"
-        }>
+        }
+      >
         Currently delivering {driver.activeOrders || 0}{" "}
         {(driver.activeOrders || 0) === 1 ? "order" : "orders"}
       </p>
