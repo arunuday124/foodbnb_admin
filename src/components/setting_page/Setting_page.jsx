@@ -12,18 +12,23 @@ import "react-toastify/dist/ReactToastify.css";
 import { db } from "../../Firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 
+// Module-level cache to survive navigation
+let cachedSettings = {
+  notifications: null,
+  menu: null,
+  delivery: null,
+};
+
 function Setting_page() {
   const [activeTab, setActiveTab] = useState("notifications");
-  const [notifications, setNotifications] = useState(null);
-  const [menuSettings, setMenuSettings] = useState(null);
-  const [deliverySettings, setDeliverySettings] = useState(null);
-
-  // Track if data has been loaded to prevent refetching
-  const dataLoadedRef = useRef({
-    notifications: false,
-    menu: false,
-    delivery: false,
-  });
+  const [notifications, setNotifications] = useState(
+    cachedSettings.notifications,
+  );
+  const [menuSettings, setMenuSettings] = useState(cachedSettings.menu);
+  const [deliverySettings, setDeliverySettings] = useState(
+    cachedSettings.delivery,
+  );
+  const isMountedRef = useRef(true);
 
   const tabs = [
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -34,107 +39,147 @@ function Setting_page() {
 
   // Load all settings once on component mount
   useEffect(() => {
+    isMountedRef.current = true;
+
     const loadAllSettings = async () => {
       try {
-        // Load notifications only if not already loaded
-        if (!dataLoadedRef.current.notifications) {
+        // Load notifications only if not cached
+        if (!cachedSettings.notifications) {
           const notifSnap = await getDoc(
-            doc(db, "deliverySetting", "notification")
+            doc(db, "deliverySetting", "notification"),
           );
+          if (!isMountedRef.current) return;
+
           if (notifSnap.exists()) {
             const data = notifSnap.data();
-            setNotifications({
+            const notifData = {
               newOrders: data.newOrder ?? true,
               orderStatus: data.orderStatus ?? false,
               lowStock: data.lowStock ?? true,
               driverUpdates: data.driverUpdate ?? false,
               weeklyReports: data.weeklyReport ?? false,
-            });
+            };
+            setNotifications(notifData);
+            cachedSettings.notifications = notifData;
           } else {
-            setNotifications({
+            const defaultNotif = {
               newOrders: true,
               orderStatus: false,
               lowStock: true,
               driverUpdates: false,
               weeklyReports: false,
-            });
+            };
+            setNotifications(defaultNotif);
+            cachedSettings.notifications = defaultNotif;
           }
-          dataLoadedRef.current.notifications = true;
+        } else {
+          setNotifications(cachedSettings.notifications);
         }
 
-        // Load menu settings only if not already loaded
-        if (!dataLoadedRef.current.menu) {
+        // Load menu settings only if not cached
+        if (!cachedSettings.menu) {
           const menuSnap = await getDoc(
-            doc(db, "deliverySetting", "menuSettting")
+            doc(db, "deliverySetting", "menuSettting"),
           );
+          if (!isMountedRef.current) return;
+
           if (menuSnap.exists()) {
             const data = menuSnap.data();
-            setMenuSettings({
+            const menuData = {
               autoDisable: data.autoDisable ?? false,
               displayPrepTime: data.prepTime ?? true,
               showRatings: data.ratingMenu ?? true,
               taxRate: data.taxRate?.toString() || "5",
-            });
+            };
+            setMenuSettings(menuData);
+            cachedSettings.menu = menuData;
           } else {
-            setMenuSettings({
+            const defaultMenu = {
               autoDisable: false,
               displayPrepTime: true,
               showRatings: true,
               taxRate: "5",
-            });
+            };
+            setMenuSettings(defaultMenu);
+            cachedSettings.menu = defaultMenu;
           }
-          dataLoadedRef.current.menu = true;
+        } else {
+          setMenuSettings(cachedSettings.menu);
         }
 
-        // Load delivery settings only if not already loaded
-        if (!dataLoadedRef.current.delivery) {
+        // Load delivery settings only if not cached
+        if (!cachedSettings.delivery) {
           const deliverySnap = await getDoc(
-            doc(db, "deliverySetting", "settings")
+            doc(db, "deliverySetting", "settings"),
           );
+          if (!isMountedRef.current) return;
+
           if (deliverySnap.exists()) {
             const data = deliverySnap.data();
-            setDeliverySettings({
+            const deliveryData = {
               minOrder: data.minimumOrderAmount?.toString() || "50",
               deliveryFee: data.deliveryFee?.toString() || "8",
               deliveryRadius:
                 data["deliveryRadius (miles)"]?.toString() || "10",
               avgPrepTime: data.averagePreparationTime?.toString() || "20",
               avgDeliveryTime: data.averageDeliveryTime?.toString() || "20",
-            });
+            };
+            setDeliverySettings(deliveryData);
+            cachedSettings.delivery = deliveryData;
           } else {
-            setDeliverySettings({
+            const defaultDelivery = {
               minOrder: "50",
               deliveryFee: "8",
               deliveryRadius: "10",
               avgPrepTime: "20",
               avgDeliveryTime: "20",
-            });
+            };
+            setDeliverySettings(defaultDelivery);
+            cachedSettings.delivery = defaultDelivery;
           }
-          dataLoadedRef.current.delivery = true;
+        } else {
+          setDeliverySettings(cachedSettings.delivery);
         }
       } catch (error) {
-        console.error("Error loading settings:", error);
-        toast.error("Failed to load settings");
+        if (isMountedRef.current) {
+          console.error("Error loading settings:", error);
+          toast.error("Failed to load settings");
+        }
       }
     };
 
     loadAllSettings();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []); // Only run once on mount
 
   const handleNotificationToggle = (key) => {
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
+    const updatedNotifications = {
+      ...notifications,
+      [key]: !notifications[key],
+    };
+    setNotifications(updatedNotifications);
+    cachedSettings.notifications = updatedNotifications; // Update cache
   };
 
   const handleMenuToggle = (key) => {
-    setMenuSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+    const updatedMenu = { ...menuSettings, [key]: !menuSettings[key] };
+    setMenuSettings(updatedMenu);
+    cachedSettings.menu = updatedMenu; // Update cache
   };
 
   const handleTaxRateChange = (value) => {
-    setMenuSettings((prev) => ({ ...prev, taxRate: value }));
+    const updatedMenu = { ...menuSettings, taxRate: value };
+    setMenuSettings(updatedMenu);
+    cachedSettings.menu = updatedMenu; // Update cache
   };
 
   const handleDeliveryChange = (key, value) => {
-    setDeliverySettings((prev) => ({ ...prev, [key]: value }));
+    const updatedDelivery = { ...deliverySettings, [key]: value };
+    setDeliverySettings(updatedDelivery);
+    cachedSettings.delivery = updatedDelivery; // Update cache
   };
 
   const saveNotificationSettings = async () => {
@@ -148,7 +193,7 @@ function Setting_page() {
           driverUpdate: notifications.driverUpdates,
           weeklyReport: notifications.weeklyReports,
         },
-        { merge: true }
+        { merge: true },
       );
       toast.success("Notification settings saved successfully!");
     } catch (error) {
@@ -167,7 +212,7 @@ function Setting_page() {
           ratingMenu: menuSettings.showRatings,
           taxRate: parseFloat(menuSettings.taxRate) || 0,
         },
-        { merge: true }
+        { merge: true },
       );
       toast.success("Menu settings saved successfully!");
     } catch (error) {
@@ -189,7 +234,7 @@ function Setting_page() {
           averageDeliveryTime:
             parseFloat(deliverySettings.avgDeliveryTime) || 0,
         },
-        { merge: true }
+        { merge: true },
       );
       toast.success("Delivery settings saved successfully!");
     } catch (error) {
@@ -443,7 +488,7 @@ function Setting_page() {
                                 onChange={(e) =>
                                   handleDeliveryChange(
                                     "minOrder",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -465,7 +510,7 @@ function Setting_page() {
                                 onChange={(e) =>
                                   handleDeliveryChange(
                                     "deliveryFee",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -483,7 +528,7 @@ function Setting_page() {
                               onChange={(e) =>
                                 handleDeliveryChange(
                                   "deliveryRadius",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -500,7 +545,7 @@ function Setting_page() {
                               onChange={(e) =>
                                 handleDeliveryChange(
                                   "avgPrepTime",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -517,7 +562,7 @@ function Setting_page() {
                               onChange={(e) =>
                                 handleDeliveryChange(
                                   "avgDeliveryTime",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
