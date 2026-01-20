@@ -9,9 +9,11 @@ import {
   CreditCard,
   MapPin,
   Image,
-  Copy,
+  ChevronDown,
+  ChevronUp,
   Phone,
-  MapPinned,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   collection,
@@ -37,7 +39,8 @@ const Customer = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "" });
+  const [displayLimit, setDisplayLimit] = useState(5);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -128,6 +131,8 @@ const Customer = () => {
               id: doc.id,
               name: data.name || "Unknown User",
               email: data.email || "No email",
+              phone: data.phone || "No phone",
+              address: data.address || "No address",
               photoURL: data.photoURL || null,
               createdAt: data.createdAt || null,
               walletBalance: data.walletBalance || 0,
@@ -136,14 +141,12 @@ const Customer = () => {
               initials,
               color,
               hasRecentOrders: recentCustomerIdsCache?.has(doc.id),
-              address: data.address || null,
-              phone: data.phone || null,
             };
           });
 
           cachedCustomersData = customerData;
           setAllCustomers(customerData);
-          setCustomers(customerData.filter((c) => c.hasRecentOrders));
+          setCustomers(customerData);
           setError(null);
         },
         (err) => {
@@ -156,7 +159,7 @@ const Customer = () => {
     const initializeData = async () => {
       if (cachedCustomersData) {
         setAllCustomers(cachedCustomersData);
-        setCustomers(cachedCustomersData.filter((c) => c.hasRecentOrders));
+        setCustomers(cachedCustomersData);
       }
 
       await fetchRecentCustomerIds();
@@ -170,15 +173,6 @@ const Customer = () => {
       if (unsubscribeUsers) unsubscribeUsers();
     };
   }, [user]);
-
-  const handleCopyId = (id) => {
-    navigator.clipboard.writeText(id).then(() => {
-      setToast({ show: true, message: "ID copied to clipboard!" });
-      setTimeout(() => {
-        setToast({ show: false, message: "" });
-      }, 3000);
-    });
-  };
 
   const handleViewDetails = async (customer) => {
     setSelectedCustomer(customer);
@@ -208,6 +202,12 @@ const Customer = () => {
     setCustomerOrders([]);
   };
 
+  const copyToClipboard = (id) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const getStatusColor = (status) => {
     const statusLower = status?.toLowerCase();
     if (statusLower === "delivered") return "bg-green-100 text-green-700";
@@ -224,6 +224,14 @@ const Customer = () => {
     return status?.toUpperCase() || "PENDING";
   };
 
+  const handleViewMore = () => {
+    setDisplayLimit((prev) => prev + 5);
+  };
+
+  const handleViewLess = () => {
+    setDisplayLimit(5);
+  };
+
   const queryLower = searchQuery.trim().toLowerCase();
   const filteredCustomers = queryLower
     ? allCustomers.filter((customer) => {
@@ -238,6 +246,10 @@ const Customer = () => {
         );
       })
     : customers;
+
+  const displayedCustomers = filteredCustomers.slice(0, displayLimit);
+  const hasMore = filteredCustomers.length > displayLimit;
+  const showViewLess = displayLimit > 5 && filteredCustomers.length > 5;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
@@ -304,112 +316,127 @@ const Customer = () => {
       )}
 
       {!error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCustomers.length > 0 ? (
-            filteredCustomers.map((customer) => (
-              <div
-                key={customer.id}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-slate-200"
-              >
-                <div className="flex items-center mb-4">
-                  {customer.photoURL ? (
-                    <img
-                      src={customer.photoURL}
-                      alt={customer.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className={`w-16 h-16 rounded-full ${customer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}
-                    >
-                      {customer.initials}
-                    </div>
-                  )}
-                </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedCustomers.length > 0 ? (
+              displayedCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-slate-200">
+                  <div className="flex items-center mb-4">
+                    {customer.photoURL ? (
+                      <img
+                        src={customer.photoURL}
+                        alt={customer.name}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className={`w-16 h-16 rounded-full ${customer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}>
+                        {customer.initials}
+                      </div>
+                    )}
+                  </div>
 
-                <h3 className="font-bold text-lg text-slate-800 mb-2">
-                  {customer.name}
-                </h3>
+                  <h3 className="font-bold text-lg text-slate-800 mb-2">
+                    {customer.name}
+                  </h3>
+                  <div className="flex items-center min-w-0 flex-1">
+                    <CreditCard className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
+                    <span className="text-xs text-slate-500 truncate">
+                      {customer.id}
+                    </span>
+                  </div>
 
-                <div className="space-y-2 text-sm text-slate-600 mb-4">
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-2 text-sm text-slate-600 mb-4">
                     <div className="flex items-center">
-                      <CreditCard className="w-4 h-4 mr-2 text-slate-400" />
-                      <span className="text-xs text-slate-500">
-                        ID: {customer.id}
-                      </span>
+                      <Mail className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
+                      <span className="truncate">{customer.email}</span>
                     </div>
-                    <button
-                      onClick={() => handleCopyId(customer.id)}
-                      className="p-1.5 hover:bg-slate-100 rounded-md transition-colors group"
-                      title="Copy ID"
-                    >
-                      <Copy className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
-                    </button>
-                  </div>
-                  <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-2 text-slate-400" />
-                    <span className="truncate">{customer.email}</span>
+                    <div className="flex items-center">
+                      <Phone className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
+                      <span className="truncate">{customer.phone}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
+                      <span className="truncate">{customer.address}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                      <button
+                        onClick={() => copyToClipboard(customer.id)}
+                        className="ml-2 p-1 hover:bg-slate-200 rounded transition-colors shrink-0"
+                        title="Copy ID">
+                        {copiedId === customer.id ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-600" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                  {/* this is for the customer address */}
-                  <div className="flex items-center">
-                    <MapPinned className="w-4 h-4 mr-2 text-slate-400" />
-                    <span className="text-xs text-slate-500">
-                      address : {customer.address || "N/A"}
-                    </span>
+                  <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-slate-200">
+                    <div>
+                      <p className="text-xs text-slate-500">Orders</p>
+                      <p className="text-lg font-bold text-slate-800">
+                        {customer.noOfOrders}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Spent</p>
+                      <p className="text-lg font-bold text-slate-800">
+                        ₹{customer.walletBalance}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Last Order</p>
+                      <p className="text-xs font-semibold text-slate-600">
+                        {customer.updatedAt
+                          ? new Date(
+                              customer.updatedAt.toDate(),
+                            ).toLocaleDateString()
+                          : "N/A"}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* this is for the customer phone number */}
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-slate-400" />
-                    <span className="text-xs text-slate-500">
-                      phone : {customer.phone || "N/A"}
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => handleViewDetails(customer)}
+                    className="w-full h-10 bg-orange-500 hover:bg-orange-600 text-white font-semibold  rounded-lg transition-colors ">
+                    View Details
+                  </button>
                 </div>
-
-                <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-slate-200">
-                  <div>
-                    <p className="text-xs text-slate-500">Orders</p>
-                    <p className="text-lg font-bold text-slate-800">
-                      {customer.noOfOrders}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Spent</p>
-                    <p className="text-lg font-bold text-slate-800">
-                      ₹{customer.walletBalance}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Last Order</p>
-                    <p className="text-xs font-semibold text-slate-600">
-                      {customer.updatedAt
-                        ? new Date(
-                            customer.updatedAt.toDate(),
-                          ).toLocaleDateString()
-                        : "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleViewDetails(customer)}
-                  className="w-full h-10 bg-orange-500 hover:bg-orange-600 text-white font-semibold  rounded-lg transition-colors "
-                >
-                  View Details
-                </button>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-20">
+                <p className="text-slate-500 text-lg">
+                  No customers found matching your search.
+                </p>
               </div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-20">
-              <p className="text-slate-500 text-lg">
-                No customers found matching your search.
-              </p>
+            )}
+          </div>
+
+          {displayedCustomers.length > 0 && (hasMore || showViewLess) && (
+            <div className="flex justify-center gap-4 mt-8">
+              {hasMore && (
+                <button
+                  onClick={handleViewMore}
+                  className="flex items-center h-10 gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors shadow-md">
+                  View More
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+              )}
+              {showViewLess && (
+                <button
+                  onClick={handleViewLess}
+                  className="flex items-center h-10 gap-2 px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-colors shadow-md">
+                  View Less
+                  <ChevronUp className="w-5 h-5" />
+                </button>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
 
       {selectedCustomer && (
@@ -421,8 +448,7 @@ const Customer = () => {
               </h2>
               <button
                 onClick={closeModal}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-6 h-6 text-slate-600" />
               </button>
             </div>
@@ -438,8 +464,7 @@ const Customer = () => {
                     />
                   ) : (
                     <div
-                      className={`w-16 h-16 rounded-full ${selectedCustomer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}
-                    >
+                      className={`w-16 h-16 rounded-full ${selectedCustomer.color} flex items-center justify-center text-white font-bold text-xl mr-4`}>
                       {selectedCustomer.initials}
                     </div>
                   )}
@@ -448,6 +473,35 @@ const Customer = () => {
                       {selectedCustomer.name}
                     </h3>
                     <p className="text-slate-600">{selectedCustomer.email}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm text-slate-600 mb-4">
+                  <div className="flex items-center">
+                    <Phone className="w-4 h-4 mr-2 text-slate-400" />
+                    <span>{selectedCustomer.phone}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2 text-slate-400" />
+                    <span>{selectedCustomer.address}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white p-2 rounded-lg">
+                    <div className="flex items-center min-w-0 flex-1">
+                      <CreditCard className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
+                      <span className="text-xs text-slate-500 truncate">
+                        {selectedCustomer.id}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(selectedCustomer.id)}
+                      className="ml-2 p-1 hover:bg-slate-100 rounded transition-colors id"
+                      title="Copy ID">
+                      {copiedId === selectedCustomer.id ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-slate-600" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -492,8 +546,7 @@ const Customer = () => {
                   {customerOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                    >
+                      className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="font-bold text-slate-800">
@@ -508,8 +561,7 @@ const Customer = () => {
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                             order.orderStatus,
-                          )}`}
-                        >
+                          )}`}>
                           {getStatusText(order.orderStatus)}
                         </span>
                       </div>
@@ -541,8 +593,7 @@ const Customer = () => {
                           order.items.map((item, idx) => (
                             <div
                               key={idx}
-                              className="flex items-center justify-between text-sm"
-                            >
+                              className="flex items-center justify-between text-sm">
                               <span className="text-slate-700">
                                 {item.name} x {item.qnt}
                               </span>
@@ -583,13 +634,6 @@ const Customer = () => {
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {toast.show && (
-        <div className="fixed bottom-8 right-8 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up z-50 flex items-center gap-2">
-          <Copy className="w-5 h-5 text-green-400" />
-          <span className="font-medium">{toast.message}</span>
         </div>
       )}
     </div>
