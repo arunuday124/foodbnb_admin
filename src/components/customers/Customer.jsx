@@ -371,7 +371,6 @@ const Customer = () => {
                       <MapPin className="w-4 h-4 mr-2 text-slate-400 shrink-0" />
                       <span className="truncate">{customer.address}</span>
                     </div>
-                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg"></div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-slate-200">
