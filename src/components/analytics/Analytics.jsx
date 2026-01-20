@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TrendingUp, TrendingDown, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, ChevronRight } from "lucide-react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../Firebase";
 
@@ -179,14 +179,7 @@ const UserLocationMap = ({ users }) => {
 
         // Add individual user markers on top
         validLocations.forEach((user) => {
-          const colors = [
-            // "#3b82f6",
-            "#ef4444",
-            // "#10b981",
-            // "#f59e0b",
-            // "#8b5cf6",
-            // "#ec4899",
-          ];
+          const colors = ["#ef4444"];
           const userColor = colors[Math.floor(Math.random() * colors.length)];
 
           const initials = user.name
@@ -251,17 +244,97 @@ const UserLocationMap = ({ users }) => {
 const Analytics = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [firstTimeCustomers, setFirstTimeCustomers] = useState(0);
+  const [firstTimeOrders, setFirstTimeOrders] = useState(0);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [cancelledOrders, setCancelledOrders] = useState(0);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [revenueData, setRevenueData] = useState([
-    { month: "Dec", revenue: "₹0", orders: "0 orders", percentage: 0 },
-    { month: "Jan", revenue: "₹0", orders: "0 orders", percentage: 0 },
-    { month: "Feb", revenue: "₹0", orders: "0 orders", percentage: 0 },
-    { month: "Mar", revenue: "₹0", orders: "0 orders", percentage: 0 },
-    { month: "Apr", revenue: "₹0", orders: "0 orders", percentage: 0 },
-    { month: "May", revenue: "₹0", orders: "0 orders", percentage: 0 },
+    {
+      month: "Jan",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Feb",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Mar",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Apr",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "May",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Jun",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Jul",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Aug",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Sep",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Oct",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Nov",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
+    {
+      month: "Dec",
+      revenue: "₹0",
+      orders: "0 orders",
+      percentage: 0,
+      delivered: 0,
+    },
   ]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [orderFrequency, setOrderFrequency] = useState([
@@ -279,12 +352,18 @@ const Analytics = () => {
         if (!isMounted) return;
 
         const monthData = {
-          Dec: { delivered: 0, count: 0 },
           Jan: { delivered: 0, count: 0 },
           Feb: { delivered: 0, count: 0 },
           Mar: { delivered: 0, count: 0 },
           Apr: { delivered: 0, count: 0 },
           May: { delivered: 0, count: 0 },
+          Jun: { delivered: 0, count: 0 },
+          Jul: { delivered: 0, count: 0 },
+          Aug: { delivered: 0, count: 0 },
+          Sep: { delivered: 0, count: 0 },
+          Oct: { delivered: 0, count: 0 },
+          Nov: { delivered: 0, count: 0 },
+          Dec: { delivered: 0, count: 0 },
         };
 
         let cancelledCount = 0;
@@ -299,7 +378,7 @@ const Analytics = () => {
           const orderData = doc.data();
           const orderStatus = (orderData.orderStatus || "").toLowerCase();
 
-          // Count cancelled orders (check for both "cancelled" and "Cancelled")
+          // Count cancelled orders
           if (orderStatus === "cancelled") {
             cancelledCount++;
           }
@@ -394,80 +473,35 @@ const Analytics = () => {
           },
         ]);
 
-        // Calculate percentages with base value of 10000
-        const revenueBaseValue = 10000;
-
-        const updatedRevenueData = [
-          {
-            month: "Dec",
-            revenue: `₹${Math.round(monthData.Dec.delivered).toLocaleString()}`,
-            delivered: monthData.Dec.delivered,
-            orders: `${monthData.Dec.count} orders`,
-            percentage: Math.min(
-              (monthData.Dec.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-          {
-            month: "Jan",
-            revenue: `₹${Math.round(monthData.Jan.delivered).toLocaleString()}`,
-            delivered: monthData.Jan.delivered,
-            orders: `${monthData.Jan.count} orders`,
-            percentage: Math.min(
-              (monthData.Jan.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-          {
-            month: "Feb",
-            revenue: `₹${Math.round(monthData.Feb.delivered).toLocaleString()}`,
-            delivered: monthData.Feb.delivered,
-            orders: `${monthData.Feb.count} orders`,
-            percentage: Math.min(
-              (monthData.Feb.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-          {
-            month: "Mar",
-            revenue: `₹${Math.round(monthData.Mar.delivered).toLocaleString()}`,
-            delivered: monthData.Mar.delivered,
-            orders: `${monthData.Mar.count} orders`,
-            percentage: Math.min(
-              (monthData.Mar.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-          {
-            month: "Apr",
-            revenue: `₹${Math.round(monthData.Apr.delivered).toLocaleString()}`,
-            delivered: monthData.Apr.delivered,
-            orders: `${monthData.Apr.count} orders`,
-            percentage: Math.min(
-              (monthData.Apr.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-          {
-            month: "May",
-            revenue: `₹${Math.round(monthData.May.delivered).toLocaleString()}`,
-            delivered: monthData.May.delivered,
-            orders: `${monthData.May.count} orders`,
-            percentage: Math.min(
-              (monthData.May.delivered / revenueBaseValue) * 100,
-              100,
-            ),
-          },
-        ];
-
-        setRevenueData(updatedRevenueData);
-
         const totalDeliveredRevenue = Object.values(monthData).reduce(
           (sum, month) => sum + month.delivered,
           0,
         );
 
         setTotalRevenue(Math.round(totalDeliveredRevenue));
+
+        // Update revenue data with actual values
+        const baseRevenue = 10000; // ₹1 Lakh base value
+        const maxRevenue = Math.max(
+          ...Object.values(monthData).map((m) => m.delivered),
+          baseRevenue,
+        );
+
+        const updatedRevenueData = Object.keys(monthData).map((monthKey) => {
+          const monthInfo = monthData[monthKey];
+          const percentage =
+            maxRevenue > 0 ? (monthInfo.delivered / maxRevenue) * 100 : 0;
+
+          return {
+            month: monthKey,
+            revenue: `₹${Math.round(monthInfo.delivered).toLocaleString()}`,
+            orders: `${monthInfo.count} orders`,
+            percentage: percentage,
+            delivered: monthInfo.delivered,
+          };
+        });
+
+        setRevenueData(updatedRevenueData);
       },
       (error) => {
         if (!isMounted) return;
@@ -481,7 +515,7 @@ const Analytics = () => {
     };
   }, []);
 
-  // Real-time listener for users (total customers and first-time customers)
+  // Real-time listener for users
   useEffect(() => {
     let isMounted = true;
 
@@ -493,8 +527,9 @@ const Analytics = () => {
         const totalCount = snapshot.size;
         const usersData = [];
 
-        // Count users with noOfOrders === 0 or noOfOrders === 1
-        let firstTimeCount = 0;
+        let zeroOrderCustomers = 0; // First Time Customers (noOfOrders === 0)
+        let oneOrderCustomers = 0; // First Time Orders (noOfOrders === 1)
+
         snapshot.forEach((doc) => {
           const userData = doc.data();
           const noOfOrders = userData.noOfOrders || 0;
@@ -504,14 +539,21 @@ const Analytics = () => {
             ...userData,
           });
 
-          if (noOfOrders === 0 || noOfOrders === 1) {
-            firstTimeCount++;
+          // ✅ First Time Customers → 0 orders (never ordered)
+          if (noOfOrders === 0) {
+            zeroOrderCustomers++;
+          }
+
+          // ✅ First Time Orders → exactly 1 order
+          if (noOfOrders === 1) {
+            oneOrderCustomers++;
           }
         });
 
         setUsers(usersData);
         setTotalCustomers(totalCount);
-        setFirstTimeCustomers(firstTimeCount);
+        setFirstTimeCustomers(zeroOrderCustomers); // Customers with 0 orders
+        setFirstTimeOrders(oneOrderCustomers); // Customers with 1 order
         setLoading(false);
         setIsLoaded(true);
       },
@@ -551,6 +593,25 @@ const Analytics = () => {
 
   const usersWithOrders = users.filter((u) => u.noOfOrders > 0);
 
+  // Pagination logic
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(revenueData.length / itemsPerPage);
+  const startIndex = currentPage * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentMonthsData = revenueData.slice(startIndex, endIndex);
+
+  const handleViewMore = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleViewLess = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="min-h-full bg-gray-50 p-4 md:p-6 lg:p-8 shadow-sm">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -564,13 +625,12 @@ const Analytics = () => {
           </p>
         </div>
 
-        {/* Stats Cards - 3 cards in equal grid */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {statsCards.map((stat, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg border border-gray-200 p-6 shadow-xl"
-            >
+              className="bg-white rounded-lg border border-gray-200 p-6 shadow-xl">
               <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
               <p className="text-3xl font-bold text-gray-900 mb-2">
                 <AnimatedNumber value={stat.value} />
@@ -584,8 +644,7 @@ const Analytics = () => {
                 <p
                   className={`text-sm ${
                     stat.isPositive ? "text-green-600" : "text-red-600"
-                  }`}
-                >
+                  }`}>
                   {stat.change}
                 </p>
               </div>
@@ -593,7 +652,7 @@ const Analytics = () => {
           ))}
         </div>
 
-        {/* User Location Map with Hotspots */}
+        {/* User Location Map */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -622,7 +681,7 @@ const Analytics = () => {
             </div>
 
             <div className="space-y-6">
-              {revenueData.map((item, index) => (
+              {currentMonthsData.map((item, index) => (
                 <div key={index}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-900">
@@ -647,10 +706,37 @@ const Analytics = () => {
               ))}
             </div>
 
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center gap-3">
+                {currentPage > 0 && (
+                  <button
+                    onClick={handleViewLess}
+                    className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors">
+                    <ChevronRight size={14} className="rotate-180" />
+                    Previous
+                  </button>
+                )}
+
+                <span className="text-xs text-gray-500">
+                  {currentPage + 1} / {totalPages}
+                </span>
+
+                {currentPage < totalPages - 1 && (
+                  <button
+                    onClick={handleViewMore}
+                    className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors font-medium">
+                    View More
+                    <ChevronRight size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
-                  Total Revenue (Last 6 Months)
+                  Total Revenue (All Months)
                 </span>
                 <span className="text-2xl font-bold text-green-600">
                   ₹{totalRevenue.toLocaleString()}
@@ -680,25 +766,25 @@ const Analytics = () => {
                 />
               </p>
               <p className="text-sm text-purple-600">
-                +{loading ? "0" : firstTimeCustomers.toString()} first time
-                customers
+                +{loading ? "0" : firstTimeOrders.toString()} first time orders
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-6">
                 <p className="text-sm text-blue-700 font-medium mb-2">
-                  First Time
+                  First Time Orders
                 </p>
                 <p className="text-3xl font-bold text-blue-900 mb-1">
                   <AnimatedNumber
-                    value={loading ? "0" : firstTimeCustomers.toString()}
+                    value={loading ? "0" : firstTimeOrders.toString()}
                   />
                 </p>
+
                 <p className="text-sm text-blue-600">
                   {loading || totalCustomers === 0
                     ? "0"
-                    : ((firstTimeCustomers / totalCustomers) * 100).toFixed(1)}
+                    : ((firstTimeOrders / totalCustomers) * 100).toFixed(1)}
                   %
                 </p>
               </div>
