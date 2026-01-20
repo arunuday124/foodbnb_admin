@@ -10,6 +10,7 @@ const Orders = () => {
   const [allOrders, setAllOrders] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
   const [showToast, setShowToast] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(6);
 
   // Copy text user id
   const handleCopy = (text) => {
@@ -46,7 +47,7 @@ const Orders = () => {
       (error) => {
         if (!isMounted) return;
         console.error("Error fetching orders:", error);
-      }
+      },
     );
 
     return () => {
@@ -107,6 +108,25 @@ const Orders = () => {
       }, 0)
       .toFixed(2);
   };
+
+  const handleViewMore = () => {
+    setVisibleCount((prevCount) => prevCount + 6);
+  };
+
+  const displayedOrders = filteredOrders.slice(0, visibleCount);
+  const hasMoreOrders = visibleCount < filteredOrders.length;
+
+  // Reset visible count when filter or search changes
+  const resetVisibleCount = () => {
+    if (visibleCount !== 6) {
+      setVisibleCount(6);
+    }
+  };
+
+  useEffect(() => {
+    resetVisibleCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter, searchQuery]);
 
   return (
     <div className="min-h-full bg-gray-50 p-4 md:p-6 lg:p-8">
@@ -211,92 +231,116 @@ const Orders = () => {
         </div>
         {/* Orders Grid or Empty State */}
         {filteredOrders.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow">
-                {/* Order Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      id : {order.id}
-                    </h3>
-                    <p className="text-xs text-gray-500">{order.time}</p>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {displayedOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow">
+                  {/* Order Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        id : {order.id}
+                      </h3>
+                      <p className="text-xs text-gray-500">{order.time}</p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
+                        order.status,
+                      )}`}>
+                      {getStatusLabel(order.status)}
+                    </span>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
-                      order.status
-                    )}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
 
-                {/* Customer Info */}
-                <div className="mb-4">
-                  <p className="font-semibold text-gray-900">{order.name}</p>
-                  {/* user id */}
-                  <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
-                    <p className="line-clamp-2">
-                      Uid : {order.Uid}
-                      <span className="relative group ml-2">
-                        <Copy
-                          size={14}
-                          className="inline cursor-pointer text-gray-400 hover:text-black transition-colors"
-                          onClick={() => handleCopy(order.Uid)}
-                        />
-                        <span className="absolute left-0 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          Copy
+                  {/* Customer Info */}
+                  <div className="mb-4">
+                    <p className="font-semibold text-gray-900">{order.name}</p>
+                    {/* user id */}
+                    <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
+                      <p className="line-clamp-2">
+                        Uid : {order.Uid}
+                        <span className="relative group ml-2">
+                          <Copy
+                            size={14}
+                            className="inline cursor-pointer text-gray-400 hover:text-black transition-colors"
+                            onClick={() => handleCopy(order.Uid)}
+                          />
+                          <span className="absolute left-0 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            Copy
+                          </span>
                         </span>
-                      </span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <MapPin size={16} className="mt-0.5 shrink-0" />
+                      <p className="line-clamp-2">{order.address}</p>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
+                      <p className="line-clamp-2">{order.kitchenName}</p>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      Items:
                     </p>
+                    <div className="space-y-1">
+                      {order.items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between text-sm">
+                          <span className="text-gray-700">
+                            {item.name} : {item.qnt}X
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            ₹{item.price}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin size={16} className="mt-0.5 shrink-0" />
-                    <p className="line-clamp-2">{order.address}</p>
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
-                    <p className="line-clamp-2">{order.kitchenName}</p>
+                  {/* Duration and Total */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <Clock size={16} />
+                      <span> Duration: {order.duration}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Total</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        ₹{calculateOrderTotal(order.items)}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Items */}
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-gray-900 mb-2">
-                    Items:
-                  </p>
-                  <div className="space-y-1">
-                    {order.items.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span className="text-gray-700">
-                          {item.name} : {item.qnt}X
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          ₹{item.price}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Duration and Total */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <Clock size={16} />
-                    <span> Duration: {order.duration}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Total</p>
-                    <p className="text-lg font-bold text-gray-900">
-                      ₹{calculateOrderTotal(order.items)}
-                    </p>
-                  </div>
-                </div>
+            {/* View More/Less Buttons */}
+            {(hasMoreOrders || visibleCount > 6) && (
+              <div className="flex justify-center gap-4 mt-8">
+                {hasMoreOrders && (
+                  <button
+                    onClick={handleViewMore}
+                    className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg">
+                    View More Orders
+                  </button>
+                )}
+                {visibleCount > 6 && (
+                  <button
+                    onClick={() => setVisibleCount(6)}
+                    className="px-6 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-800 transition-colors shadow-md hover:shadow-lg">
+                    View Less
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <p className="text-gray-500 text-lg">No orders currently</p>

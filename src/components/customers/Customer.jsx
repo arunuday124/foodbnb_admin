@@ -194,6 +194,7 @@ const Customer = () => {
       setOrdersLoading(false);
     } catch (err) {
       setOrdersLoading(false);
+      alert(`Failed to load orders: ${err.message}`);
     }
   };
 
