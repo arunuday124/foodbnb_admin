@@ -1,4 +1,11 @@
-import { MapPin, Clock, UtensilsCrossed, Copy, Search } from "lucide-react";
+import {
+  MapPin,
+  Clock,
+  UtensilsCrossed,
+  Copy,
+  Search,
+  Bike,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../Firebase";
@@ -35,8 +42,10 @@ const Orders = () => {
             id: doc.id,
             ...data,
             // Convert Firebase Timestamp to readable string
-            time: data.time?.toDate
-              ? formatDistanceToNow(data.time.toDate(), { addSuffix: true })
+            time: data.createdAt?.toDate
+              ? formatDistanceToNow(data.createdAt.toDate(), {
+                  addSuffix: true,
+                })
               : "N/A",
             // Add default status if missing and normalize to lowercase
             status: (data.orderStatus || "preparing").toLowerCase(),
@@ -154,7 +163,8 @@ const Orders = () => {
               className="w-4 h-4"
               fill="none"
               stroke="currentColor"
-              viewBox="0 0 24 24">
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -171,7 +181,8 @@ const Orders = () => {
                 activeFilter === "all"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}>
+              }`}
+            >
               All Orders ({getFilterCount("all")})
             </button>
             <button
@@ -180,7 +191,8 @@ const Orders = () => {
                 activeFilter === "preparing"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}>
+              }`}
+            >
               Preparing ({getFilterCount("preparing")})
             </button>
             <button
@@ -189,7 +201,8 @@ const Orders = () => {
                 activeFilter === "in transit"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}>
+              }`}
+            >
               In Transit ({getFilterCount("in transit")})
             </button>
             <button
@@ -198,7 +211,8 @@ const Orders = () => {
                 activeFilter === "delivered"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}>
+              }`}
+            >
               Delivered ({getFilterCount("delivered")})
             </button>
 
@@ -208,7 +222,8 @@ const Orders = () => {
                 activeFilter === "cancelled"
                   ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}>
+              }`}
+            >
               Cancelled ({getFilterCount("cancelled")})
             </button>
           </div>
@@ -236,7 +251,8 @@ const Orders = () => {
               {displayedOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow">
+                  className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow"
+                >
                   {/* Order Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div>
@@ -248,7 +264,8 @@ const Orders = () => {
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
                         order.status,
-                      )}`}>
+                      )}`}
+                    >
                       {getStatusLabel(order.status)}
                     </span>
                   </div>
@@ -259,12 +276,12 @@ const Orders = () => {
                     {/* user id */}
                     <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
                       <p className="line-clamp-2">
-                        Uid : {order.Uid}
+                        Uid : {order.uId}
                         <span className="relative group ml-2">
                           <Copy
                             size={14}
                             className="inline cursor-pointer text-gray-400 hover:text-black transition-colors"
-                            onClick={() => handleCopy(order.Uid)}
+                            onClick={() => handleCopy(order.uId)}
                           />
                           <span className="absolute left-0 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             Copy
@@ -281,6 +298,14 @@ const Orders = () => {
                       <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
                       <p className="line-clamp-2">{order.kitchenName}</p>
                     </div>
+                    {order.riderId && (
+                      <div className="flex items-start gap-2 text-sm text-gray-600">
+                        <Bike size={16} className="mt-0.5 shrink-0" />
+                        <p className="line-clamp-2">
+                          Rider ID: {order.riderId}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Items */}
@@ -292,7 +317,8 @@ const Orders = () => {
                       {order.items.map((item, index) => (
                         <div
                           key={index}
-                          className="flex justify-between text-sm">
+                          className="flex justify-between text-sm"
+                        >
                           <span className="text-gray-700">
                             {item.name} : {item.qnt}X
                           </span>
@@ -327,14 +353,16 @@ const Orders = () => {
                 {hasMoreOrders && (
                   <button
                     onClick={handleViewMore}
-                    className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg">
+                    className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg"
+                  >
                     View More Orders
                   </button>
                 )}
                 {visibleCount > 6 && (
                   <button
                     onClick={() => setVisibleCount(6)}
-                    className="px-6 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-800 transition-colors shadow-md hover:shadow-lg">
+                    className="px-6 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-800 transition-colors shadow-md hover:shadow-lg"
+                  >
                     View Less
                   </button>
                 )}

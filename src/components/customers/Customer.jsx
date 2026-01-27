@@ -385,13 +385,13 @@ const Customer = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Spent</p>
+                      <p className="text-xs text-slate-500">wallet Balance</p>
                       <p className="text-lg font-bold text-slate-800">
                         ₹{customer.walletBalance}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Last Order</p>
+                      <p className="text-xs text-slate-500">Last Update</p>
                       <p className="text-xs font-semibold text-slate-600">
                         {customer.updatedAt
                           ? new Date(

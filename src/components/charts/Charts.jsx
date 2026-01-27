@@ -65,8 +65,10 @@ const AnimatedNumber = ({
 // Main Dashboard Component
 export default function DashboardOverview() {
   const [starFilter, setStarFilter] = useState("all");
+  const [riderStarFilter, setRiderStarFilter] = useState("all");
   const [recentOrders, setRecentOrders] = useState([]);
   const [topReviews, setTopReviews] = useState([]);
+  const [riderReviews, setRiderReviews] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -398,7 +400,7 @@ export default function DashboardOverview() {
     let isMounted = true;
 
     const unsubscribe = onSnapshot(
-      collection(db, "reviews"),
+      collection(db, "orderReview"),
       (snapshot) => {
         if (!isMounted) return;
 
@@ -412,6 +414,34 @@ export default function DashboardOverview() {
       (error) => {
         if (!isMounted) return;
         console.error("Error fetching reviews:", error);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Real-time listener for rider reviews
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "riderReview"),
+      (snapshot) => {
+        if (!isMounted) return;
+
+        const reviewsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setRiderReviews(reviewsData);
+      },
+      (error) => {
+        if (!isMounted) return;
+        console.error("Error fetching rider reviews:", error);
       },
     );
 
@@ -464,6 +494,11 @@ export default function DashboardOverview() {
     starFilter === "all"
       ? topReviews
       : topReviews.filter((review) => review.rating === parseInt(starFilter));
+
+  const filteredRiderReviews =
+    riderStarFilter === "all"
+      ? riderReviews
+      : riderReviews.filter((review) => review.rating === parseInt(riderStarFilter));
 
   const getStatusColor = (status) => {
     const normalizedStatus = (status || "").toLowerCase();
@@ -685,10 +720,10 @@ export default function DashboardOverview() {
               )}
             </div>
           </div>
-
+              {/* order review section */}
           <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border-2 border-gray-300">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-black text-xl font-bold">Top Reviews</h2>
+              <h2 className="text-black text-xl font-bold">Order Reviews</h2>
 
               <div className="relative">
                 <select
@@ -728,14 +763,17 @@ export default function DashboardOverview() {
                 filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-slate-300 pb-4 hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
+                    className="border-b border-slate-300 pb-4 hover:bg-slate-100 rounded-lg p-2 transition-colors duration-200">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <h3 className="text-black font-semibold text-lg mb-1">
-                          {review.name}
+                        <h3 className="text-black font-bold text-xl mb-1">
+                          {review.displayName}
                         </h3>
-                        <p className="text-black text-sm mb-2">
-                          {review.product}
+                        <p className="text-black mb-2 text-l">
+                          {review.dish}
+                        </p>
+                        <p className="text-black mb-2 text-l">
+                          {review.kitchenName}
                         </p>
 
                         <div className="flex gap-1 mb-2">
@@ -751,21 +789,112 @@ export default function DashboardOverview() {
                           ))}
                         </div>
 
-                        <p className="text-black text-sm mb-2 font-bold">
-                          {review.comment}
+                        <p className="text-black text-xl mb-2 font-bold">
+                          {`"${review.review}"`}
                         </p>
                       </div>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end ">
                       <span className="text-black text-xs">
-                        <Time timestamp={review.time} />
+                        <Time timestamp={review.timeStamp} />
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-black text-sm">
+                  <p className="text-black text-xl">
+                    No reviews found for this rating
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+            {/* this is rider reviews page */}
+          <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border-2 border-gray-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-black text-xl font-bold">Rider Reviews</h2>
+
+              <div className="relative">
+                <select
+                  value={riderStarFilter}
+                  onChange={(e) => setRiderStarFilter(e.target.value)}
+                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none appearance-none pr-8">
+                  <option value="all">All Stars</option>
+                  <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
+                  <option value="4">⭐⭐⭐⭐ 4 Stars</option>
+                  <option value="3">⭐⭐⭐ 3 Stars</option>
+                  <option value="2">⭐⭐ 2 Stars</option>
+                  <option value="1">⭐ 1 Star</option>
+                </select>
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-black"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
+              {loading ? (
+                <div className="text-center py-8">
+                  <p className="text-black text-sm">Loading reviews...</p>
+                </div>
+              ) : filteredRiderReviews.length > 0 ? (
+                filteredRiderReviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="border-b border-slate-300 pb-4 hover:bg-slate-100 rounded-lg p-2 transition-colors duration-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-black font-semibold text-xl mb-1">
+                          {review.riderName}
+                        </h3>
+                        <p className="text-black mb-2 text-l">
+                          {review.kitchenName}
+                        </p>
+
+                        <div className="flex gap-1 mb-2">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < review.rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-slate-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <p className="text-black text-xl mb-2 font-bold">
+                          {`"${review.review}"`}
+                        </p>
+                        <p className="text-black mb-2 text-l font-semibold ml-40">
+                          by - {review.userName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end ">
+                      <span className="text-black text-xs">
+                        <Time timestamp={review.timeStamp} />
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-black text-xl">
                     No reviews found for this rating
                   </p>
                 </div>

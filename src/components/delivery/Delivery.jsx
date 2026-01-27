@@ -579,7 +579,8 @@ const Delivery = () => {
               filterStatus === "active"
                 ? "bg-green-600 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             Active
           </button>
           <button
@@ -588,7 +589,8 @@ const Delivery = () => {
               filterStatus === "inactive"
                 ? "bg-red-500 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             Inactive
           </button>
           <button
@@ -597,7 +599,8 @@ const Delivery = () => {
               showMap
                 ? "bg-blue-600 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             <MapIcon size={18} />
             Map
           </button>
@@ -627,7 +630,8 @@ const Delivery = () => {
                 <button
                   onClick={loadMoreActive}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                >
                   {loadingMore ? "Loading..." : "View More Active Drivers"}
                 </button>
               )}
@@ -635,7 +639,8 @@ const Delivery = () => {
                 <button
                   onClick={viewLessActive}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                >
                   {loadingMore ? "Loading..." : "View Less"}
                 </button>
               )}
@@ -660,7 +665,8 @@ const Delivery = () => {
                 <button
                   onClick={loadMoreInactive}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                >
                   {loadingMore ? "Loading..." : "View More Inactive Drivers"}
                 </button>
               )}
@@ -668,7 +674,8 @@ const Delivery = () => {
                 <button
                   onClick={viewLessInactive}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors">
+                  className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                >
                   {loadingMore ? "Loading..." : "View Less"}
                 </button>
               )}
@@ -840,7 +847,8 @@ const DriverCard = ({ driver }) => (
         <div
           className={`${
             driver.color || "bg-purple-500"
-          } w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md`}>
+          } w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md`}
+        >
           {driver.name
             .split(" ")
             .map((n) => n[0])
@@ -861,7 +869,8 @@ const DriverCard = ({ driver }) => (
           (driver.activeOrders || 0) > 0
             ? "bg-green-100 text-green-700"
             : "bg-slate-100 text-slate-600"
-        } text-xs font-medium rounded-full`}>
+        } text-xs font-medium rounded-full`}
+      >
         {(driver.activeOrders || 0) > 0 ? "Active" : "Inactive"}
       </span>
     </div>
@@ -905,13 +914,15 @@ const DriverCard = ({ driver }) => (
         (driver.activeOrders || 0) > 0
           ? "p-3 bg-orange-50 border border-orange-200 rounded-lg"
           : "p-3 bg-gray-100 border border-gray-200 rounded-lg"
-      }>
+      }
+    >
       <p
         className={
           (driver.activeOrders || 0) > 0
             ? "text-sm text-orange-700 font-medium"
             : "text-sm text-gray-400 font-medium"
-        }>
+        }
+      >
         Currently delivering {driver.activeOrders || 0}{" "}
         {(driver.activeOrders || 0) === 1 ? "order" : "orders"}
       </p>
