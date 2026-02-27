@@ -1,4 +1,3 @@
-// DashboardOverview.jsx
 import React, { useState, useEffect } from "react";
 import {
   IndianRupee,
@@ -18,470 +17,203 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../../Firebase";
 import { formatDistanceToNow } from "date-fns";
+import { useDashboard } from "../../context/Dashboardcontext";
 
-// AnimatedNumber Component
-const AnimatedNumber = ({
-  value,
-  duration = 1000,
-  prefix = "",
-  suffix = "",
-}) => {
-  const [displayValue, setDisplayValue] = useState(0);
-
+const AnimatedNumber = ({ value, duration = 1000 }) => {
+  const [display, setDisplay] = useState(0);
   useEffect(() => {
-    let startTime;
-    let animationId;
-
-    const animate = (currentTime) => {
-      if (!startTime) startTime = currentTime;
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const currentValue = Math.floor(progress * value);
-      setDisplayValue(currentValue);
-
-      if (progress < 1) {
-        animationId = requestAnimationFrame(animate);
-      }
+    let id, start;
+    const run = (now) => {
+      if (!start) start = now;
+      const p = Math.min((now - start) / duration, 1);
+      setDisplay(Math.floor(p * value));
+      if (p < 1) id = requestAnimationFrame(run);
     };
-
-    animationId = requestAnimationFrame(animate);
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-    };
+    id = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(id);
   }, [value, duration]);
-
-  return (
-    <span>
-      {prefix}
-      {displayValue.toLocaleString()}
-      {suffix}
-    </span>
-  );
+  return <span>{display.toLocaleString()}</span>;
 };
 
-// Main Dashboard Component
-export default function DashboardOverview() {
-  const [starFilter, setStarFilter] = useState("all");
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [topReviews, setTopReviews] = useState([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState("week");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [chartData, setChartData] = useState([]);
-  const [allOrders, setAllOrders] = useState([]);
-
-  // Process orders for chart based on timeframe
-  const processOrdersForChart = (orders, timeframe) => {
-    const now = new Date();
-
-    if (timeframe === "day") {
-      const hours = Array.from({ length: 12 }, (_, i) => i * 2);
-      return hours.map((hour) => {
-        const label =
-          hour === 0
-            ? "12 AM"
-            : hour < 12
-              ? `${hour} AM`
-              : hour === 12
-                ? "12 PM"
-                : `${hour - 12} PM`;
-
-        const currentDayStart = new Date(now);
-        currentDayStart.setHours(hour, 0, 0, 0);
-        const currentDayEnd = new Date(now);
-        currentDayEnd.setHours(hour + 2, 0, 0, 0);
-
-        const prevDayStart = new Date(currentDayStart);
-        prevDayStart.setDate(prevDayStart.getDate() - 1);
-        const prevDayEnd = new Date(currentDayEnd);
-        prevDayEnd.setDate(prevDayEnd.getDate() - 1);
-
-        const thisday = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= currentDayStart && orderTime < currentDayEnd;
-        }).length;
-
-        const lastday = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= prevDayStart && orderTime < prevDayEnd;
-        }).length;
-
-        return { label, thisday, lastday };
-      });
-    }
-
-    if (timeframe === "week") {
-      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-      const currentWeekStart = new Date(now);
-      currentWeekStart.setDate(now.getDate() - now.getDay());
-      currentWeekStart.setHours(0, 0, 0, 0);
-
-      return days.map((day, index) => {
-        const currentDayStart = new Date(currentWeekStart);
-        currentDayStart.setDate(currentWeekStart.getDate() + index);
-        const currentDayEnd = new Date(currentDayStart);
-        currentDayEnd.setDate(currentDayEnd.getDate() + 1);
-
-        const prevDayStart = new Date(currentDayStart);
-        prevDayStart.setDate(prevDayStart.getDate() - 7);
-        const prevDayEnd = new Date(currentDayEnd);
-        prevDayEnd.setDate(prevDayEnd.getDate() - 7);
-
-        const thisWeek = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= currentDayStart && orderTime < currentDayEnd;
-        }).length;
-
-        const lastWeek = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= prevDayStart && orderTime < prevDayEnd;
-        }).length;
-
-        return { label: day, thisWeek, lastWeek };
-      });
-    }
-
-    if (timeframe === "month") {
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const weeksInMonth = 4;
-
-      return Array.from({ length: weeksInMonth }, (_, weekIndex) => {
-        const currentWeekStart = new Date(currentMonthStart);
-        currentWeekStart.setDate(1 + weekIndex * 7);
-        const currentWeekEnd = new Date(currentWeekStart);
-        currentWeekEnd.setDate(currentWeekStart.getDate() + 7);
-
-        const prevWeekStart = new Date(currentWeekStart);
-        prevWeekStart.setMonth(prevWeekStart.getMonth() - 1);
-        const prevWeekEnd = new Date(currentWeekEnd);
-        prevWeekEnd.setMonth(prevWeekEnd.getMonth() - 1);
-
-        const thismonth = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= currentWeekStart && orderTime < currentWeekEnd;
-        }).length;
-
-        const lastmonth = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= prevWeekStart && orderTime < prevWeekEnd;
-        }).length;
-
-        return { label: `Week ${weekIndex + 1}`, thismonth, lastmonth };
-      });
-    }
-
-    if (timeframe === "year") {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      return months.map((month, index) => {
-        const currentMonthStart = new Date(now.getFullYear(), index, 1);
-        const currentMonthEnd = new Date(now.getFullYear(), index + 1, 1);
-
-        const prevMonthStart = new Date(now.getFullYear() - 1, index, 1);
-        const prevMonthEnd = new Date(now.getFullYear() - 1, index + 1, 1);
-
-        const thisyear = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= currentMonthStart && orderTime < currentMonthEnd;
-        }).length;
-
-        const lastyear = orders.filter((order) => {
-          if (!order.time) return false;
-          const orderTime = order.time.toDate();
-          return orderTime >= prevMonthStart && orderTime < prevMonthEnd;
-        }).length;
-
-        return { label: month, thisyear, lastyear };
-      });
-    }
-
-    return [];
+const buildChart = (orders, tf) => {
+  const now = new Date();
+  const inRange = (o, s, e) => {
+    const t = o.createdAt?.toDate?.();
+    return t && t >= s && t < e;
   };
 
-  // Get dynamic dataKey based on timeframe
-  const getDataKeys = () => {
-    switch (timeframe) {
-      case "day":
-        return { current: "thisday", previous: "lastday" };
-      case "week":
-        return { current: "thisWeek", previous: "lastWeek" };
-      case "month":
-        return { current: "thismonth", previous: "lastmonth" };
-      case "year":
-        return { current: "thisyear", previous: "lastyear" };
-      default:
-        return { current: "thisWeek", previous: "lastWeek" };
-    }
-  };
-
-  // StatCard Component
-  const StatCard = ({
-    title,
-    change,
-    icon: Icon,
-    isNegative,
-    numericValue,
-  }) => {
-    return (
-      <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
-        <div className="flex items-start justify-between mb-4">
-          <h3 className="text-black text-sm font-medium">{title}</h3>
-          <div className="bg-stone-200/50 p-2 rounded-lg hover:bg-slate-700 transition-colors duration-300">
-            <Icon className="w-5 h-5 text-black" />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <p className="text-black text-3xl font-bold">
-            {title === "Total Revenue" ? (
-              <>
-                ₹<AnimatedNumber value={numericValue} duration={1000} />
-              </>
-            ) : (
-              <AnimatedNumber value={numericValue} duration={1000} />
-            )}
-          </p>
-
-          <div className="flex items-center gap-2">
-            {isNegative ? (
-              <TrendingDown className="w-4 h-4 text-red-800" />
-            ) : (
-              <TrendingUp className="w-4 h-4 text-green-800" />
-            )}
-            <span
-              className={`text-sm font-medium ${isNegative ? "text-red-800" : "text-green-800"}`}>
-              {change}
-            </span>
-            <span className="text-black text-sm">vs last month</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Real-time listener for orders
-  useEffect(() => {
-    let isMounted = true;
-
-    const unsubscribe = onSnapshot(
-      collection(db, "orders"),
-      (snapshot) => {
-        if (!isMounted) return;
-
-        const ordersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setAllOrders(ordersData);
-
-        let revenue = 0;
-        let deliveredOrdersCount = 0;
-
-        ordersData.forEach((order) => {
-          const orderStatus = (order.orderStatus || "").toLowerCase();
-
-          if (
-            orderStatus === "delivered" &&
-            order.items &&
-            Array.isArray(order.items)
-          ) {
-            deliveredOrdersCount++;
-            order.items.forEach((item) => {
-              revenue += (item.price || 0) * (item.qnt || 1);
-            });
-          }
-        });
-
-        const twelveHoursAgo = new Date();
-        twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
-
-        const recentOrdersList = ordersData
-          .filter((order) => {
-            if (!order.time) return false;
-            const orderTime = order.time.toDate();
-            return orderTime >= twelveHoursAgo;
-          })
-          .map((order) => ({
-            id: order.id,
-            name: order.name || "N/A",
-            kitchenName: order.kitchenName || "N/A",
-            address: order.address || "N/A",
-            orderStatus: order.orderStatus || "pending",
-            time: order.time,
-            items: order.items || [],
-            totalPrice: order.items
-              ? order.items.reduce(
-                  (sum, item) => sum + (item.price || 0) * (item.qnt || 1),
-                  0,
-                )
-              : 0,
-          }))
-          .sort((a, b) => b.time.toDate() - a.time.toDate());
-
-        setTotalRevenue(revenue);
-        setTotalOrders(deliveredOrdersCount);
-        setRecentOrders(recentOrdersList);
-      },
-      (error) => {
-        if (!isMounted) return;
-        console.error("Error fetching orders:", error);
-      },
-    );
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  // Process chart data when orders or timeframe changes
-  useEffect(() => {
-    if (allOrders.length > 0) {
-      const processedData = processOrdersForChart(allOrders, timeframe);
-      setChartData(processedData);
-    }
-  }, [allOrders, timeframe]);
-
-  // Real-time listener for users
-  useEffect(() => {
-    let isMounted = true;
-
-    const unsubscribe = onSnapshot(
-      collection(db, "users"),
-      (snapshot) => {
-        if (!isMounted) return;
-        setTotalUsers(snapshot.size);
-        setLoading(false);
-      },
-      (error) => {
-        if (!isMounted) return;
-        console.error("Error fetching users:", error);
-        setLoading(false);
-      },
-    );
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  // Real-time listener for reviews
-  useEffect(() => {
-    let isMounted = true;
-
-    const unsubscribe = onSnapshot(
-      collection(db, "reviews"),
-      (snapshot) => {
-        if (!isMounted) return;
-
-        const reviewsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setTopReviews(reviewsData);
-      },
-      (error) => {
-        if (!isMounted) return;
-        console.error("Error fetching reviews:", error);
-      },
-    );
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  const stats = [
-    {
-      title: "Total Revenue",
-      value: `₹${totalRevenue.toLocaleString()}`,
-      numericValue: totalRevenue,
-      change: "20.1%",
-      icon: IndianRupee,
-      isNegative: false,
-    },
-    {
-      title: "Total Orders",
-      value: totalOrders.toString(),
-      numericValue: totalOrders,
-      change: "4.2%",
-      icon: ShoppingCart,
-      isNegative: true,
-    },
-    {
-      title: "Total Users",
-      value: totalUsers.toString(),
-      numericValue: totalUsers,
-      change: "8.7%",
-      icon: UserPlus,
-      isNegative: true,
-    },
+  if (tf === "day") {
+    return Array.from({ length: 12 }, (_, i) => i * 2).map((h) => {
+      const label =
+        h === 0
+          ? "12AM"
+          : h < 12
+            ? `${h}AM`
+            : h === 12
+              ? "12PM"
+              : `${h - 12}PM`;
+      const s = new Date(now);
+      s.setHours(h, 0, 0, 0);
+      const e = new Date(now);
+      e.setHours(h + 2, 0, 0, 0);
+      const ps = new Date(s);
+      ps.setDate(ps.getDate() - 1);
+      const pe = new Date(e);
+      pe.setDate(pe.getDate() - 1);
+      return {
+        label,
+        thisday: orders.filter((o) => inRange(o, s, e)).length,
+        lastday: orders.filter((o) => inRange(o, ps, pe)).length,
+      };
+    });
+  }
+  if (tf === "week") {
+    const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    const ws = new Date(now);
+    ws.setDate(now.getDate() - now.getDay());
+    ws.setHours(0, 0, 0, 0);
+    return days.map((label, i) => {
+      const s = new Date(ws);
+      s.setDate(ws.getDate() + i);
+      const e = new Date(s);
+      e.setDate(e.getDate() + 1);
+      const ps = new Date(s);
+      ps.setDate(ps.getDate() - 7);
+      const pe = new Date(e);
+      pe.setDate(pe.getDate() - 7);
+      return {
+        label,
+        thisWeek: orders.filter((o) => inRange(o, s, e)).length,
+        lastWeek: orders.filter((o) => inRange(o, ps, pe)).length,
+      };
+    });
+  }
+  if (tf === "month") {
+    const ms = new Date(now.getFullYear(), now.getMonth(), 1);
+    return [1, 2, 3, 4].map((w) => {
+      const s = new Date(ms);
+      s.setDate(1 + (w - 1) * 7);
+      const e = new Date(s);
+      e.setDate(s.getDate() + 7);
+      const ps = new Date(s);
+      ps.setMonth(ps.getMonth() - 1);
+      const pe = new Date(e);
+      pe.setMonth(pe.getMonth() - 1);
+      return {
+        label: `Week ${w}`,
+        thismonth: orders.filter((o) => inRange(o, s, e)).length,
+        lastmonth: orders.filter((o) => inRange(o, ps, pe)).length,
+      };
+    });
+  }
+  // year
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
+  return months.map((label, i) => {
+    const s = new Date(now.getFullYear(), i, 1);
+    const e = new Date(now.getFullYear(), i + 1, 1);
+    const ps = new Date(now.getFullYear() - 1, i, 1);
+    const pe = new Date(now.getFullYear() - 1, i + 1, 1);
+    return {
+      label,
+      thisyear: orders.filter((o) => inRange(o, s, e)).length,
+      lastyear: orders.filter((o) => inRange(o, ps, pe)).length,
+    };
+  });
+};
 
-  const OrderTime = ({ timestamp }) => {
-    if (!timestamp || !timestamp.toDate) return <span>N/A</span>;
-    const date = timestamp.toDate();
-    return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>;
-  };
+const KEYS = {
+  day: { cur: "thisday", prev: "lastday" },
+  week: { cur: "thisWeek", prev: "lastWeek" },
+  month: { cur: "thismonth", prev: "lastmonth" },
+  year: { cur: "thisyear", prev: "lastyear" },
+};
 
-  const Time = ({ timestamp }) => {
-    if (!timestamp || !timestamp.toDate) return <span>N/A</span>;
-    const date = timestamp.toDate();
-    return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>;
-  };
+const STATUS_COLOR = {
+  delivered: "text-green-600",
+  pending: "text-yellow-600",
+  preparing: "text-blue-600",
+  cancelled: "text-red-600",
+};
+
+const StatCard = ({ title, icon: Icon, isNegative, numericValue, change }) => (
+  <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+    <div className="flex items-start justify-between mb-4">
+      <h3 className="text-black text-sm font-medium">{title}</h3>
+      <div className="bg-stone-200/50 p-2 rounded-lg">
+        <Icon className="w-5 h-5 text-black" />
+      </div>
+    </div>
+    <div className="flex flex-col gap-2">
+      <p className="text-black text-3xl font-bold">
+        {title === "Total Revenue" ? (
+          <>
+            ₹<AnimatedNumber value={numericValue} />
+          </>
+        ) : (
+          <AnimatedNumber value={numericValue} />
+        )}
+      </p>
+      <div className="flex items-center gap-2">
+        {isNegative ? (
+          <TrendingDown className="w-4 h-4 text-red-800" />
+        ) : (
+          <TrendingUp className="w-4 h-4 text-green-800" />
+        )}
+        <span
+          className={`text-sm font-medium ${isNegative ? "text-red-800" : "text-green-800"}`}>
+          {change}
+        </span>
+        <span className="text-black text-sm">vs last month</span>
+      </div>
+    </div>
+  </div>
+);
+
+export default function Charts() {
+  const {
+    recentOrders,
+    allOrdersForChart,
+    reviews,
+    totalUsers,
+    totalRevenue,
+    totalDeliveredOrders,
+    loading,
+  } = useDashboard();
+  const [starFilter, setStarFilter] = useState("all");
+  const [timeframe, setTimeframe] = useState("week");
+  const [dropdown, setDropdown] = useState(false);
+  const [chartData, setChartData] = useState([]);
+
+  useEffect(() => {
+    if (allOrdersForChart.length > 0)
+      setChartData(buildChart(allOrdersForChart, timeframe));
+  }, [allOrdersForChart, timeframe]);
 
   const filteredReviews =
     starFilter === "all"
-      ? topReviews
-      : topReviews.filter((review) => review.rating === parseInt(starFilter));
-
-  const getStatusColor = (status) => {
-    const normalizedStatus = (status || "").toLowerCase();
-    switch (normalizedStatus) {
-      case "delivered":
-        return "text-green-600 font-semibold";
-      case "pending":
-        return "text-yellow-600 font-semibold";
-      case "preparing":
-        return "text-blue-600 font-semibold";
-      case "cancelled":
-        return "text-red-600 font-semibold";
-      default:
-        return "text-slate-600 font-semibold";
-    }
+      ? reviews
+      : reviews.filter((r) => r.rating === parseInt(starFilter));
+  const keys = KEYS[timeframe];
+  const TF = {
+    day: "This day",
+    week: "This week",
+    month: "This month",
+    year: "This year",
   };
-
-  const dataKeys = getDataKeys();
 
   return (
     <div className="min-h-screen bg-white p-4 sm:p-6 lg:p-8">
@@ -490,99 +222,89 @@ export default function DashboardOverview() {
           <h1 className="text-slate-900 text-3xl sm:text-4xl font-bold mb-2">
             Dashboard Overview
           </h1>
-          <p className="text-slate-600 text-base sm:text-lg">
-            Welcome back! Here's what's happening with your business today.
+          <p className="text-slate-600">
+            Welcome back! Here's what's happening today.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <StatCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              numericValue={stat.numericValue}
-              change={stat.change}
-              icon={stat.icon}
-              isNegative={stat.isNegative}
-            />
-          ))}
+          <StatCard
+            title="Total Revenue"
+            numericValue={totalRevenue}
+            change="20.1%"
+            icon={IndianRupee}
+            isNegative={false}
+          />
+          <StatCard
+            title="Total Orders"
+            numericValue={totalDeliveredOrders}
+            change="4.2%"
+            icon={ShoppingCart}
+            isNegative={true}
+          />
+          <StatCard
+            title="Total Users"
+            numericValue={totalUsers}
+            change="8.7%"
+            icon={UserPlus}
+            isNegative={true}
+          />
         </div>
 
-        <div className="w-full bg-white rounded-xl shadow-lg p-8 mb-5 border border-slate-300">
+        {/* Chart */}
+        <div className="w-full bg-white rounded-xl shadow-lg p-6 mb-6 border border-slate-300">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">
                 Order Activity Timeline
               </h2>
               <p className="text-slate-500 text-sm mt-1">
-                Real-time view of order frequency and activity trends.
+                Order frequency trends
               </p>
             </div>
-
             <div className="relative">
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium">
-                {timeframe === "day" && "This day"}
-                {timeframe === "week" && "This week"}
-                {timeframe === "month" && "This month"}
-                {timeframe === "year" && "This year"}
-                <ChevronDown size={18} />
+                onClick={() => setDropdown((p) => !p)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium">
+                {TF[timeframe]} <ChevronDown size={18} />
               </button>
-
-              {isDropdownOpen && (
+              {dropdown && (
                 <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-10">
-                  {[
-                    { value: "day", label: "This day" },
-                    { value: "week", label: "This week" },
-                    { value: "month", label: "This month" },
-                    { value: "year", label: "This year" },
-                  ].map((option) => (
+                  {Object.entries(TF).map(([val, label]) => (
                     <button
-                      key={option.value}
+                      key={val}
                       onClick={() => {
-                        setTimeframe(option.value);
-                        setIsDropdownOpen(false);
+                        setTimeframe(val);
+                        setDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-3 hover:bg-slate-100 transition-colors ${
-                        timeframe === option.value
-                          ? "bg-blue-50 text-blue-600 font-semibold"
-                          : "text-slate-700"
-                      }`}>
-                      {option.label}
+                      className={`w-full text-left px-4 py-3 hover:bg-slate-100 transition text-sm ${timeframe === val ? "bg-blue-50 text-blue-600 font-semibold" : "text-slate-700"}`}>
+                      {label}
                     </button>
                   ))}
                 </div>
               )}
             </div>
           </div>
-
-          <div className="flex gap-6 mb-6">
+          <div className="flex gap-6 mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-              <span className="text-sm font-medium text-slate-700">
-                Current
-              </span>
+              <div className="w-3 h-3 bg-blue-600 rounded-full" />
+              <span className="text-sm text-slate-700">Current</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-cyan-400 rounded-full"></div>
-              <span className="text-sm font-medium text-slate-700">
-                Previous
-              </span>
+              <div className="w-3 h-3 bg-cyan-400 rounded-full" />
+              <span className="text-sm text-slate-700">Previous</span>
             </div>
           </div>
-
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart
               data={chartData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="colorPrevious" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="gp" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
                 </linearGradient>
@@ -599,198 +321,142 @@ export default function DashboardOverview() {
                   backgroundColor: "#1e293b",
                   border: "none",
                   borderRadius: "8px",
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
                 }}
                 labelStyle={{ color: "#fff" }}
-                formatter={(value) => value.toLocaleString()}
               />
               <Area
                 type="monotone"
-                dataKey={dataKeys.current}
+                dataKey={keys.cur}
                 stroke="#2563eb"
                 strokeWidth={2}
                 fillOpacity={1}
-                fill="url(#colorCurrent)"
+                fill="url(#gc)"
               />
               <Area
                 type="monotone"
-                dataKey={dataKeys.previous}
+                dataKey={keys.prev}
                 stroke="#06b6d4"
                 strokeWidth={2}
                 fillOpacity={1}
-                fill="url(#colorPrevious)"
+                fill="url(#gp)"
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg border-2 border-gray-300">
+          {/* Recent Orders */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-300">
             <h2 className="text-black text-xl font-bold mb-6">
               Recent Orders (Last 12 Hours)
             </h2>
-
-            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
               {loading ? (
-                <div className="text-center py-8">
-                  <p className="text-black text-sm">Loading orders...</p>
-                </div>
+                <p className="text-center text-slate-500 py-8">Loading...</p>
               ) : recentOrders.length > 0 ? (
                 recentOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="border-b border-slate-300 mb-4 last:mb-0 hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
-                    <div className="flex justify-between items-start mb-2">
+                    className="border-b border-slate-200 pb-3 hover:bg-slate-50 rounded-lg p-3 transition">
+                    <div className="flex justify-between items-start mb-1">
                       <div className="flex-1">
-                        <h3 className="text-black font-semibold text-base">
+                        <h3 className="text-black font-semibold">
                           {order.name}
                         </h3>
-                        <p className="text-slate-600 text-sm font-medium">
+                        <p className="text-slate-500 text-sm">
                           {order.kitchenName}
                         </p>
-                        <p className="text-slate-500 text-xs mt-1">
+                        <p className="text-slate-400 text-xs">
                           {order.address}
                         </p>
                       </div>
-                      <span className="text-black font-bold text-lg">
+                      <span className="text-black font-bold">
                         ₹{order.totalPrice.toLocaleString()}
                       </span>
                     </div>
-
-                    <div className="mb-2 ml-2">
-                      {order.items.map((item, idx) => (
-                        <p key={idx} className="text-slate-700 text-sm">
-                          • {item.name} × {item.qnt} - ₹{item.price}
+                    <div className="ml-1 mb-1">
+                      {order.items.map((item, i) => (
+                        <p key={i} className="text-slate-600 text-xs">
+                          • {item.name} × {item.qnt} — ₹{item.price}
                         </p>
                       ))}
                     </div>
-
                     <div className="flex justify-between items-center">
                       <span
-                        className={`text-sm ${getStatusColor(order.orderStatus)}`}>
-                        {order.orderStatus.toUpperCase()}
+                        className={`text-sm font-semibold ${STATUS_COLOR[(order.order_status || "").toLowerCase()] || "text-slate-600"}`}>
+                        {order.order_status}
                       </span>
-                      <span className="text-slate-500 text-xs font-medium">
-                        <OrderTime timestamp={order.time} />
+                      <span className="text-slate-400 text-xs">
+                        {order.createdAt?.toDate
+                          ? formatDistanceToNow(order.createdAt.toDate(), {
+                              addSuffix: true,
+                            })
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-slate-600 text-sm">
-                    No recent orders in the last 12 hours
-                  </p>
-                </div>
+                <p className="text-center text-slate-500 py-8">
+                  No orders in the last 12 hours
+                </p>
               )}
             </div>
           </div>
 
-          <div className="bg-white from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border-2 border-gray-300">
+          {/* Reviews */}
+          <div className="bg-white rounded-2xl p-6 shadow-xl border-2 border-gray-300">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-black text-xl font-bold">Top Reviews</h2>
-
-              <div className="relative">
-                <select
-                  value={starFilter}
-                  onChange={(e) => setStarFilter(e.target.value)}
-                  className="bg-white text-black border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-stone-400 transition-colors duration-200 focus:outline-none appearance-none pr-8">
-                  <option value="all">All Stars</option>
-                  <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
-                  <option value="4">⭐⭐⭐⭐ 4 Stars</option>
-                  <option value="3">⭐⭐⭐ 3 Stars</option>
-                  <option value="2">⭐⭐ 2 Stars</option>
-                  <option value="1">⭐ 1 Star</option>
-                </select>
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-black"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <select
+                value={starFilter}
+                onChange={(e) => setStarFilter(e.target.value)}
+                className="bg-white text-black border border-gray-300 px-3 py-2 rounded-lg text-sm focus:outline-none">
+                <option value="all">All Stars</option>
+                {[5, 4, 3, 2, 1].map((n) => (
+                  <option key={n} value={n}>
+                    {"⭐".repeat(n)} {n} Stars
+                  </option>
+                ))}
+              </select>
             </div>
-
-            <div className="space-y-4 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
-              {loading ? (
-                <div className="text-center py-8">
-                  <p className="text-black text-sm">Loading reviews...</p>
-                </div>
-              ) : filteredReviews.length > 0 ? (
-                filteredReviews.map((review) => (
+            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+              {filteredReviews.length > 0 ? (
+                filteredReviews.map((r) => (
                   <div
-                    key={review.id}
-                    className="border-b border-slate-300 pb-4 hover:bg-slate-100 rounded-lg p-3 transition-colors duration-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h3 className="text-black font-semibold text-lg mb-1">
-                          {review.name}
-                        </h3>
-                        <p className="text-black text-sm mb-2">
-                          {review.product}
-                        </p>
-
-                        <div className="flex gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-slate-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        <p className="text-black text-sm mb-2 font-bold">
-                          {review.comment}
-                        </p>
-                      </div>
+                    key={r.id}
+                    className="border-b border-slate-200 pb-3 hover:bg-slate-50 rounded-lg p-3 transition">
+                    <h3 className="text-black font-semibold">{r.name}</h3>
+                    <p className="text-slate-500 text-sm mb-1">{r.product}</p>
+                    <div className="flex gap-0.5 mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < r.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"}`}
+                        />
+                      ))}
                     </div>
-                    <div className="flex justify-end">
-                      <span className="text-black text-xs">
-                        <Time timestamp={review.time} />
-                      </span>
-                    </div>
+                    <p className="text-black text-sm font-medium">
+                      {r.comment}
+                    </p>
+                    <p className="text-slate-400 text-xs text-right mt-1">
+                      {r.time?.toDate
+                        ? formatDistanceToNow(r.time.toDate(), {
+                            addSuffix: true,
+                          })
+                        : "N/A"}
+                    </p>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-black text-sm">
-                    No reviews found for this rating
-                  </p>
-                </div>
+                <p className="text-center text-slate-500 py-8">
+                  No reviews found
+                </p>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(51, 65, 85, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.5);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(148, 163, 184, 0.7);
-        }
-      `}</style>
     </div>
   );
 }

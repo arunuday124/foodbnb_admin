@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   PackageOpen,
   Utensils,
+  HandHelping,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Mom's Kitchen", icon: Utensils, href: "/restaurant" },
   { label: "Delivery", icon: PackageOpen, href: "/delivery" },
   { label: "Analytics", icon: PieChart, href: "/analytics" },
+  { label: "Support Requests", icon: HandHelping, href: "/support" },
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 

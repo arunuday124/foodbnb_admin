@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   MapPin,
   Clock,
@@ -6,340 +7,197 @@ import {
   Search,
   Bike,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../../Firebase";
-import { formatDistanceToNow } from "date-fns";
+import { useOrders } from "../../context/OrdersContext";
+
+const FILTERS = ["all", "preparing", "in transit", "delivered", "cancelled"];
+
+const STATUS_COLORS = {
+  delivered: "bg-green-100 text-green-700",
+  preparing: "bg-blue-100 text-blue-700",
+  "in transit": "bg-orange-100 text-orange-700",
+  cancelled: "bg-red-100 text-red-700",
+};
+
+const calcTotal = (items) =>
+  (Array.isArray(items)
+    ? items.reduce((s, i) => s + (i.price || 0) * (i.qnt || 1), 0)
+    : 0
+  ).toFixed(2);
 
 const Orders = () => {
+  const { orders, loading, loadingMore, hasMore, loadMore } = useOrders();
+
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [allOrders, setAllOrders] = useState([]);
-  const [copiedId, setCopiedId] = useState(null);
-  const [showToast, setShowToast] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(6);
+  const [toast, setToast] = useState("");
 
-  // Copy text user id
-  const handleCopy = (text) => {
+  const copy = (text) => {
     navigator.clipboard.writeText(text);
-    setCopiedId(text);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    setToast(text);
+    setTimeout(() => setToast(""), 2000);
   };
 
-  // Order data fetching from firebase with real-time updates
-  useEffect(() => {
-    let isMounted = true;
-
-    const unsubscribe = onSnapshot(
-      collection(db, "orders"),
-      (querySnapshot) => {
-        if (!isMounted) return;
-
-        const ordersList = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            // Convert Firebase Timestamp to readable string
-            time: data.createdAt?.toDate
-              ? formatDistanceToNow(data.createdAt.toDate(), {
-                  addSuffix: true,
-                })
-              : "N/A",
-            // Add default status if missing and normalize to lowercase
-            status: (data.orderStatus || "preparing").toLowerCase(),
-          };
-        });
-        setAllOrders(ordersList);
-      },
-      (error) => {
-        if (!isMounted) return;
-        console.error("Error fetching orders:", error);
-      },
-    );
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "delivered":
-        return "bg-green-100 text-green-700";
-      case "preparing":
-        return "bg-blue-100 text-blue-700";
-      case "in transit":
-        return "bg-orange-100 text-orange-700";
-      case "cancelled":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    return status
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
-
-  const filteredOrders = allOrders.filter((order) => {
-    // Filter by status
-    if (activeFilter !== "all" && order.status !== activeFilter) {
-      return false;
-    }
-    // Filter by search query
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      const nameMatch = order.name?.toLowerCase().includes(query);
-      const uidMatch = order.Uid?.toLowerCase().includes(query);
-      return nameMatch || uidMatch;
+  // Filter runs on already-loaded docs — no extra Firestore reads
+  const filtered = orders.filter((o) => {
+    if (activeFilter !== "all" && o.status !== activeFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        o.name?.toLowerCase().includes(q) || o.uId?.toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
-  const getFilterCount = (status) => {
-    if (status === "all") return allOrders.length;
-    return allOrders.filter((order) => order.status === status).length;
-  };
-
-  const calculateOrderTotal = (items) => {
-    if (!items || !Array.isArray(items)) return 0;
-    return items
-      .reduce((sum, item) => {
-        const price = parseFloat(item.price) || 0;
-        const quantity = item.qnt || 1;
-        return sum + price * quantity;
-      }, 0)
-      .toFixed(2);
-  };
-
-  const handleViewMore = () => {
-    setVisibleCount((prevCount) => prevCount + 6);
-  };
-
-  const displayedOrders = filteredOrders.slice(0, visibleCount);
-  const hasMoreOrders = visibleCount < filteredOrders.length;
-
-  // Reset visible count when filter or search changes
-  const resetVisibleCount = () => {
-    if (visibleCount !== 6) {
-      setVisibleCount(6);
-    }
-  };
-
-  useEffect(() => {
-    resetVisibleCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter, searchQuery]);
+  const getCount = (f) =>
+    f === "all" ? orders.length : orders.filter((o) => o.status === f).length;
 
   return (
     <div className="min-h-full bg-gray-50 p-4 md:p-6 lg:p-8">
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed top-18 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in">
-          ID copied: {copiedId}
+      {toast && (
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm">
+          Copied!
         </div>
       )}
+
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Orders Management
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Track and manage all customer orders
+          <p className="text-sm text-gray-500 mt-1">
+            Showing {orders.length} most recent orders
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
-            </svg>
-            Filter by Status
-          </p>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-5">
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setActiveFilter("all")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeFilter === "all"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              All Orders ({getFilterCount("all")})
-            </button>
-            <button
-              onClick={() => setActiveFilter("preparing")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeFilter === "preparing"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Preparing ({getFilterCount("preparing")})
-            </button>
-            <button
-              onClick={() => setActiveFilter("in transit")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeFilter === "in transit"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              In Transit ({getFilterCount("in transit")})
-            </button>
-            <button
-              onClick={() => setActiveFilter("delivered")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeFilter === "delivered"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Delivered ({getFilterCount("delivered")})
-            </button>
-
-            <button
-              onClick={() => setActiveFilter("cancelled")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeFilter === "cancelled"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Cancelled ({getFilterCount("cancelled")})
-            </button>
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition capitalize ${
+                  activeFilter === f
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}>
+                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)} (
+                {getCount(f)})
+              </button>
+            ))}
           </div>
         </div>
-        {/* Search Bar */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-5">
           <div className="relative">
             <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
             />
             <input
               type="text"
-              placeholder="Search by name or UID..."
+              placeholder="Search by customer name or UID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
             />
           </div>
         </div>
-        {/* Orders Grid or Empty State */}
-        {filteredOrders.length > 0 ? (
+
+        {loading && (
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+            <p className="mt-4 text-gray-500">Loading orders...</p>
+          </div>
+        )}
+
+        {!loading && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayedOrders.map((order) => (
+              {filtered.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-white rounded-lg border border-gray-200 p-5 shadow-lg hover:shadow-xl transition-shadow"
-                >
-                  {/* Order Header */}
-                  <div className="flex items-start justify-between mb-4">
+                  className="bg-white rounded-xl border border-gray-200 p-5 shadow hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        id : {order.id}
-                      </h3>
-                      <p className="text-xs text-gray-500">{order.time}</p>
+                      <p className="text-xs text-gray-400 font-mono">
+                        #{order.id.substring(0, 10)}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {order.timeAgo}
+                      </p>
                     </div>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
-                        order.status,
-                      )}`}
-                    >
-                      {getStatusLabel(order.status)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[order.status] || "bg-gray-100 text-gray-600"}`}>
+                      {order.status || "unknown"}
                     </span>
                   </div>
 
-                  {/* Customer Info */}
-                  <div className="mb-4">
-                    <p className="font-semibold text-gray-900">{order.name}</p>
-                    {/* user id */}
-                    <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
-                      <p className="line-clamp-2">
-                        Uid : {order.uId}
-                        <span className="relative group ml-2">
-                          <Copy
-                            size={14}
-                            className="inline cursor-pointer text-gray-400 hover:text-black transition-colors"
-                            onClick={() => handleCopy(order.uId)}
-                          />
-                          <span className="absolute left-0 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            Copy
-                          </span>
-                        </span>
-                      </p>
-                    </div>
+                  <p className="font-semibold text-gray-900 mb-2">
+                    {order.name}
+                  </p>
 
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
-                      <MapPin size={16} className="mt-0.5 shrink-0" />
-                      <p className="line-clamp-2">{order.address}</p>
+                  <div className="space-y-1 mb-3 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 font-mono truncate">
+                        UID: {order.uId}
+                      </span>
+                      <Copy
+                        size={12}
+                        className="cursor-pointer text-gray-400 hover:text-black shrink-0"
+                        onClick={() => copy(order.uId)}
+                      />
                     </div>
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
-                      <UtensilsCrossed size={16} className="mt-0.5 shrink-0" />
-                      <p className="line-clamp-2">{order.kitchenName}</p>
+                    <div className="flex items-start gap-2">
+                      <MapPin
+                        size={14}
+                        className="mt-0.5 shrink-0 text-gray-400"
+                      />
+                      <p className="line-clamp-1">{order.address}</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <UtensilsCrossed
+                        size={14}
+                        className="mt-0.5 shrink-0 text-gray-400"
+                      />
+                      <p className="line-clamp-1">{order.kitchenName}</p>
                     </div>
                     {order.riderId && (
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <Bike size={16} className="mt-0.5 shrink-0" />
-                        <p className="line-clamp-2">
-                          Rider ID: {order.riderId}
-                        </p>
+                      <div className="flex items-start gap-2">
+                        <Bike
+                          size={14}
+                          className="mt-0.5 shrink-0 text-gray-400"
+                        />
+                        <p className="text-xs font-mono">{order.riderId}</p>
                       </div>
                     )}
                   </div>
 
-                  {/* Items */}
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold text-gray-900 mb-2">
-                      Items:
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Items
                     </p>
-                    <div className="space-y-1">
-                      {order.items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between text-sm"
-                        >
-                          <span className="text-gray-700">
-                            {item.name} : {item.qnt}X
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            ₹{item.price}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    {order.items.map((item, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          {item.name} × {item.qnt}
+                        </span>
+                        <span className="font-medium text-gray-900">
+                          ₹{item.price}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Duration and Total */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Clock size={16} />
-                      <span> Duration: {order.duration}</span>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Clock size={13} />
+                      <span>{order.duration || "—"}</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Total</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        ₹{calculateOrderTotal(order.items)}
+                      <p className="text-xs text-gray-400">Total</p>
+                      <p className="text-base font-bold text-gray-900">
+                        ₹{calcTotal(order.items)}
                       </p>
                     </div>
                   </div>
@@ -347,32 +205,24 @@ const Orders = () => {
               ))}
             </div>
 
-            {/* View More/Less Buttons */}
-            {(hasMoreOrders || visibleCount > 6) && (
-              <div className="flex justify-center gap-4 mt-8">
-                {hasMoreOrders && (
-                  <button
-                    onClick={handleViewMore}
-                    className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg"
-                  >
-                    View More Orders
-                  </button>
-                )}
-                {visibleCount > 6 && (
-                  <button
-                    onClick={() => setVisibleCount(6)}
-                    className="px-6 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-800 transition-colors shadow-md hover:shadow-lg"
-                  >
-                    View Less
-                  </button>
-                )}
+            {filtered.length === 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <p className="text-gray-400 text-lg">No orders found</p>
+              </div>
+            )}
+
+            {/* DB-level pagination: fetches next 20 from Firestore cursor, never re-reads old docs */}
+            {hasMore && (
+              <div className="mt-8 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed transition shadow">
+                  {loadingMore ? "Loading..." : "Load Next 20 Orders"}
+                </button>
               </div>
             )}
           </>
-        ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <p className="text-gray-500 text-lg">No orders currently</p>
-          </div>
         )}
       </div>
     </div>
