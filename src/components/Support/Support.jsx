@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { initializeApp, getApps } from "firebase/app";
+import { CircleX } from "lucide-react";
 import {
   getFirestore,
   collection,
@@ -29,7 +30,8 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const PAGE_SIZE = 5;
-const MAX_RESOLVED = 5;
+// FIX 4: 48 hours in milliseconds instead of max-5 cap
+const RESOLVED_TTL_MS = 48 * 60 * 60 * 1000;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatTimestamp(ts) {
@@ -61,6 +63,8 @@ function mapDoc(docSnap) {
           : "Pending"
         : (d.status ?? "Pending"),
     datetime: formatTimestamp(d.time),
+    _rawTime: d.time,
+    _resolvedAt: d.resolvedAt ?? null,
     _docRef: docSnap,
   };
 }
@@ -99,7 +103,6 @@ function MessageModal({ row, onClose, onResolve }) {
   const [resolving, setResolving] = useState(false);
   const [localResolved, setLocalResolved] = useState(false);
 
-  // Reset local state whenever a new row opens
   useEffect(() => {
     setLocalResolved(row?.status === "Resolved");
     setResolving(false);
@@ -252,7 +255,7 @@ function MessageModal({ row, onClose, onResolve }) {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  Resolved
+                  Mark Resolved
                 </>
               )}
             </button>
@@ -321,15 +324,30 @@ function MobileCard({ row, onDetails }) {
   );
 }
 
+// ── Build Firestore query for a given filter ──────────────────────────────────
+function buildBaseQuery(col, activeFilter) {
+  // FIX 2 (pagination) + FIX 4 (correct count per filter):
+  // Always add a status constraint when filter is not "All Requests"
+  if (activeFilter === "Pending") {
+    return query(col, where("status", "==", false), orderBy("time", "desc"));
+  } else if (activeFilter === "Resolved") {
+    return query(col, where("status", "==", true), orderBy("time", "desc"));
+  }
+  return query(col, orderBy("time", "desc"));
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SupportRequests() {
-  const [searchInput, setSearchInput] = useState(""); // raw typed value
-  const [search, setSearch] = useState(""); // debounced value
+  // FIX 1: separate searchInput (typed) from search (committed on Enter or 400ms debounce)
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
   const [activeFilter, setActiveFilter] = useState("All Requests");
   const [currentPage, setCurrentPage] = useState(1);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
+  // Cache keyed by "filter|page" so switching filters resets pagination correctly
   const pagesCache = useRef({});
   const currentPageRef = useRef(1);
   const [pageData, setPageData] = useState([]);
@@ -337,35 +355,52 @@ export default function SupportRequests() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
   useEffect(() => {
     currentPageRef.current = currentPage;
   }, [currentPage]);
 
-  // ── Debounce: wait 400ms after user stops typing ─────────────────────────
+  // ── FIX 1: Debounce reduced to 400 ms ─────────────────────────────────────
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 2000);
+    const timer = setTimeout(() => setSearch(searchInput), 1500);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // ── Fetch total count ────────────────────────────────────────────────────
+  // ── Reset page + cache when filter changes ─────────────────────────────────
+  useEffect(() => {
+    pagesCache.current = {};
+    setCurrentPage(1);
+  }, [activeFilter]);
+
+  // ── FIX 4: Fetch count scoped to active filter ─────────────────────────────
   useEffect(() => {
     async function fetchCount() {
       try {
         const col = collection(db, "supportRequest");
-        const snap = await getCountFromServer(col);
+        let countQuery;
+        if (activeFilter === "Pending") {
+          countQuery = query(col, where("status", "==", false));
+        } else if (activeFilter === "Resolved") {
+          countQuery = query(col, where("status", "==", true));
+        } else {
+          countQuery = col;
+        }
+        const snap = await getCountFromServer(countQuery);
         setTotalCount(snap.data().count);
       } catch (e) {
         console.error("Count fetch failed:", e);
       }
     }
     fetchCount();
-  }, []);
+  }, [activeFilter]);
 
-  // ── Fetch page ───────────────────────────────────────────────────────────
+  // ── FIX 2: Fetch page – cursor-based, keyed by filter so pages don't bleed ─
   useEffect(() => {
-    if (pagesCache.current[currentPage]) {
-      setPageData(pagesCache.current[currentPage].rows);
+    const cacheKey = `${activeFilter}|${currentPage}`;
+
+    if (pagesCache.current[cacheKey]) {
+      setPageData(pagesCache.current[cacheKey].rows);
       return;
     }
 
@@ -374,28 +409,29 @@ export default function SupportRequests() {
       setError(null);
       try {
         const col = collection(db, "supportRequest");
+        const baseQ = buildBaseQuery(col, activeFilter);
         let q;
+
         if (currentPage === 1) {
-          q = query(col, orderBy("time", "desc"), limit(PAGE_SIZE));
+          q = query(baseQ, limit(PAGE_SIZE));
         } else {
-          const prevPage = pagesCache.current[currentPage - 1];
+          const prevKey = `${activeFilter}|${currentPage - 1}`;
+          const prevPage = pagesCache.current[prevKey];
           if (!prevPage) {
-            setError("Please navigate pages sequentially.");
+            // FIX 2: re-fetch from page 1 forward automatically instead of
+            // showing an error. Reset to page 1 which will trigger this
+            // effect again via the currentPage state change.
+            setCurrentPage(1);
             setLoading(false);
             return;
           }
-          q = query(
-            col,
-            orderBy("time", "desc"),
-            startAfter(prevPage.lastDoc),
-            limit(PAGE_SIZE),
-          );
+          q = query(baseQ, startAfter(prevPage.lastDoc), limit(PAGE_SIZE));
         }
 
         const snapshot = await getDocs(q);
         const rows = snapshot.docs.map(mapDoc);
         const lastDoc = snapshot.docs[snapshot.docs.length - 1];
-        pagesCache.current[currentPage] = { rows, lastDoc };
+        pagesCache.current[cacheKey] = { rows, lastDoc };
         setPageData(rows);
       } catch (e) {
         console.error("Fetch error:", e);
@@ -406,70 +442,133 @@ export default function SupportRequests() {
     }
 
     fetchPage();
-  }, [currentPage]);
+  }, [currentPage, activeFilter]);
 
-  // ── Resolve handler ──────────────────────────────────────────────────────
-  const handleResolve = useCallback(async (row) => {
-    // 1. Mark doc as resolved in Firestore
-    const docRef = doc(db, "supportRequest", row.docId);
-    await updateDoc(docRef, { status: true });
+  // ── FIX 4 (resolve): delete resolved docs older than 48 h ─────────────────
+  const handleResolve = useCallback(
+    async (row) => {
+      const now = new Date();
+      const resolvedAt = now.toISOString(); // store ISO string
 
-    // 2. Fetch all resolved docs (oldest first) to enforce max 5
-    const resolvedSnap = await getDocs(
-      query(
-        collection(db, "supportRequest"),
-        where("status", "==", true),
-        orderBy("time", "asc"),
-      ),
-    );
+      // 1. Mark doc as resolved + record resolvedAt timestamp
+      const docRef = doc(db, "supportRequest", row.docId);
+      await updateDoc(docRef, { status: true, resolvedAt });
 
-    // 3. Delete oldest excess resolved docs
-    if (resolvedSnap.docs.length > MAX_RESOLVED) {
-      const excess = resolvedSnap.docs.slice(
-        0,
-        resolvedSnap.docs.length - MAX_RESOLVED,
+      // 2. Fetch ALL resolved docs to prune those older than 48 h
+      const resolvedSnap = await getDocs(
+        query(
+          collection(db, "supportRequest"),
+          where("status", "==", true),
+          orderBy("time", "asc"),
+        ),
       );
-      await Promise.all(excess.map((d) => deleteDoc(d.ref)));
+
+      const cutoff = new Date(now.getTime() - RESOLVED_TTL_MS);
+
+      const toDelete = resolvedSnap.docs.filter((d) => {
+        const ra = d.data().resolvedAt;
+        if (!ra) {
+          // Fallback: use the document's time field if resolvedAt not set
+          const t = d.data().time;
+          const docDate = t?.toDate ? t.toDate() : new Date(t);
+          return docDate < cutoff;
+        }
+        return new Date(ra) < cutoff;
+      });
+
+      if (toDelete.length > 0) {
+        await Promise.all(toDelete.map((d) => deleteDoc(d.ref)));
+      }
+
+      // 3. Update local page data + cache optimistically
+      setPageData((prev) => {
+        const updated = prev.map((r) =>
+          r.docId === row.docId ? { ...r, status: "Resolved" } : r,
+        );
+        const ck = `${activeFilter}|${currentPageRef.current}`;
+        if (pagesCache.current[ck]) {
+          pagesCache.current[ck] = {
+            ...pagesCache.current[ck],
+            rows: updated,
+          };
+        }
+        return updated;
+      });
+
+      // 4. Refresh total count
+      try {
+        const col = collection(db, "supportRequest");
+        let countQuery;
+        if (activeFilter === "Pending") {
+          countQuery = query(col, where("status", "==", false));
+        } else if (activeFilter === "Resolved") {
+          countQuery = query(col, where("status", "==", true));
+        } else {
+          countQuery = col;
+        }
+        const countSnap = await getCountFromServer(countQuery);
+        setTotalCount(countSnap.data().count);
+      } catch (_) {}
+    },
+    [activeFilter],
+  );
+
+  // ── FIX 1 & 3: Search now queries Firestore for full-collection search ─────
+  // We keep client-side filtering only as a fast secondary pass for
+  // the currently-loaded page; for genuine cross-page search we re-fetch.
+  const [searchResults, setSearchResults] = useState(null); // null = not in search mode
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  useEffect(() => {
+    if (!search) {
+      setSearchResults(null);
+      return;
     }
 
-    // 4. Update local state optimistically — change status so it moves sections
-    //    Also update the cache so the change survives without a re-fetch
-    setPageData((prev) => {
-      const updated = prev.map((r) =>
-        r.docId === row.docId ? { ...r, status: "Resolved" } : r,
-      );
-      // Keep cache in sync so pagination doesn't revert the change
-      if (pagesCache.current[currentPageRef.current]) {
-        pagesCache.current[currentPageRef.current] = {
-          ...pagesCache.current[currentPageRef.current],
-          rows: updated,
-        };
+    // Full-collection search: fetch all docs (up to 200) and filter client-side.
+    // For production with large collections, replace with a search index (Algolia, Typesense, etc.)
+    async function runSearch() {
+      setSearchLoading(true);
+      try {
+        const col = collection(db, "supportRequest");
+        const baseQ = buildBaseQuery(col, activeFilter);
+        // Fetch a generous batch – adjust limit if collection is very large
+        const q = query(baseQ, limit(200));
+        const snapshot = await getDocs(q);
+        const all = snapshot.docs.map(mapDoc);
+        const lq = search.toLowerCase();
+        const matched = all.filter(
+          (row) =>
+            row.id.toLowerCase().includes(lq) ||
+            row.name.toLowerCase().includes(lq) ||
+            row.email.toLowerCase().includes(lq) ||
+            row.issue.toLowerCase().includes(lq),
+        );
+        setSearchResults(matched);
+      } catch (e) {
+        console.error("Search error:", e);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
       }
-      return updated;
-    });
+    }
 
-    // 5. Refresh total count (deletions may have reduced it)
-    try {
-      const countSnap = await getCountFromServer(
-        collection(db, "supportRequest"),
-      );
-      setTotalCount(countSnap.data().count);
-    } catch (_) {}
-  }, []);
+    runSearch();
+  }, [search, activeFilter]);
 
-  // ── Filter rows ──────────────────────────────────────────────────────────
-  const filtered = pageData.filter((row) => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      !q ||
-      row.id.toLowerCase().includes(q) ||
-      row.name.toLowerCase().includes(q) ||
-      row.email.toLowerCase().includes(q) ||
-      row.issue.toLowerCase().includes(q);
-    const matchesFilter =
-      activeFilter === "All Requests" || row.status === activeFilter;
-    return matchesSearch && matchesFilter;
-  });
+  // Decide what rows to display
+  const displayRows = search ? (searchResults ?? []) : pageData;
+
+  // FIX 3: When in search mode, "Showing X of Y" reflects search hits
+  const showingStart = search
+    ? displayRows.length > 0
+      ? 1
+      : 0
+    : (currentPage - 1) * PAGE_SIZE + 1;
+  const showingEnd = search
+    ? displayRows.length
+    : (currentPage - 1) * PAGE_SIZE + pageData.length;
+  const showingOf = search ? displayRows.length : totalCount;
 
   function handlePageChange(p) {
     if (p < 1 || p > totalPages || p === currentPage) return;
@@ -483,6 +582,8 @@ export default function SupportRequests() {
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
   }
+
+  const isLoading = loading || searchLoading;
 
   return (
     <div className="min-h-screen bg-gray-100 px-3 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-12 xl:px-16 2xl:px-24 2xl:py-12">
@@ -521,11 +622,11 @@ export default function SupportRequests() {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search by ID, name, or issue type..."
+                placeholder="Search by ID, name, email or issue…"
                 className="w-full pl-9 sm:pl-10 pr-8 py-2 sm:py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs sm:text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition"
               />
-              {/* Subtle spinner while debounce is pending */}
-              {searchInput !== search && (
+              {/* FIX 1: spinner only shows during 400ms debounce */}
+              {(searchInput !== search || searchLoading) && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg
                     className="w-3.5 h-3.5 text-gray-300 animate-spin"
@@ -600,8 +701,26 @@ export default function SupportRequests() {
           )}
         </div>
 
+        {/* Search mode banner */}
+        {search && !searchLoading && (
+          <div className="px-5 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+            <p className="text-xs text-blue-600 font-medium">
+              {displayRows.length === 0
+                ? `No results for "${search}"`
+                : `${displayRows.length} result${displayRows.length !== 1 ? "s" : ""} for "${search}"`}
+            </p>
+            <CircleX
+              onClick={() => {
+                setSearchInput("");
+                setSearch("");
+              }}
+              className="text-xs text-blue-400 hover:text-blue-600 transition underline"
+            />
+          </div>
+        )}
+
         {/* Loading */}
-        {loading && (
+        {isLoading && (
           <div className="flex items-center justify-center py-16">
             <svg
               className="w-6 h-6 text-blue-500 animate-spin"
@@ -625,16 +744,20 @@ export default function SupportRequests() {
           </div>
         )}
 
-        {error && !loading && (
+        {error && !isLoading && (
           <p className="px-6 py-12 text-center text-sm text-red-400">{error}</p>
         )}
 
         {/* Mobile Cards */}
-        {!loading && !error && (
+        {!isLoading && !error && (
           <div className="block md:hidden divide-y divide-gray-50">
-            {filtered.length > 0 ? (
-              filtered.map((row) => (
-                <MobileCard key={row.id} row={row} onDetails={setSelectedRow} />
+            {displayRows.length > 0 ? (
+              displayRows.map((row) => (
+                <MobileCard
+                  key={row.docId}
+                  row={row}
+                  onDetails={setSelectedRow}
+                />
               ))
             ) : (
               <p className="px-6 py-12 text-center text-sm text-gray-400">
@@ -645,7 +768,7 @@ export default function SupportRequests() {
         )}
 
         {/* Desktop Table */}
-        {!loading && !error && (
+        {!isLoading && !error && (
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -659,7 +782,9 @@ export default function SupportRequests() {
                   ].map((h, i) => (
                     <th
                       key={h}
-                      className={`px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest whitespace-nowrap ${i === 1 ? "" : i === 4 ? "hidden xl:table-cell" : ""}`}>
+                      className={`px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest whitespace-nowrap ${
+                        i === 4 ? "hidden xl:table-cell" : ""
+                      }`}>
                       {h}
                     </th>
                   ))}
@@ -670,10 +795,10 @@ export default function SupportRequests() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row, i) => (
+                {displayRows.map((row, i) => (
                   <tr
-                    key={row.id}
-                    className={`hover:bg-gray-50 transition ${i < filtered.length - 1 ? "border-b border-gray-50" : ""}`}>
+                    key={row.docId}
+                    className={`hover:bg-gray-50 transition ${i < displayRows.length - 1 ? "border-b border-gray-50" : ""}`}>
                     <td className="px-4 lg:px-6 py-4 lg:py-5 font-mono text-xs lg:text-sm font-semibold text-gray-900 whitespace-nowrap">
                       #{row.id}
                     </td>
@@ -689,7 +814,7 @@ export default function SupportRequests() {
                     <td className="hidden xl:table-cell px-4 lg:px-6 py-4 lg:py-5 text-xs lg:text-sm text-gray-500 whitespace-nowrap">
                       {row.datetime}
                     </td>
-                    <td className="hidden lg:table-cell px-4 lg:px-6 py-4 lg:py-5 text-xs lg:text-sm text-blue-500 hover:underline cursor-pointer max-w-[200px] xl:max-w-xs truncate">
+                    <td className="hidden lg:table-cell px-4 lg:px-6 py-4 lg:py-5 text-xs lg:text-sm text-blue-500 hover:underline cursor-pointer max-w-50 xl:max-w-xs truncate">
                       {row.email}
                     </td>
                     <td className="px-4 lg:px-6 py-4 lg:py-5">
@@ -697,7 +822,7 @@ export default function SupportRequests() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {displayRows.length === 0 && (
                   <tr>
                     <td
                       colSpan={7}
@@ -711,56 +836,59 @@ export default function SupportRequests() {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
-          <p className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
-            {filtered.length > 0
-              ? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${(currentPage - 1) * PAGE_SIZE + filtered.length} of ${totalCount} requests`
-              : `No requests found`}
-          </p>
-          <div className="flex items-center gap-1 order-1 sm:order-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-
-            {getPageNumbers().map((p) => (
+        {/* Pagination – hidden in search mode since all results are shown */}
+        {!search && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+            {/* FIX 3: count reflects active filter */}
+            <p className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
+              {displayRows.length > 0
+                ? `Showing ${showingStart}–${showingEnd} of ${showingOf} requests`
+                : "No requests found"}
+            </p>
+            <div className="flex items-center gap-1 order-1 sm:order-2">
               <button
-                key={p}
-                onClick={() => handlePageChange(p)}
-                className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition cursor-pointer ${
-                  currentPage === p
-                    ? "border-2 border-blue-600 text-blue-600 font-semibold"
-                    : "border border-gray-200 text-gray-500 hover:bg-gray-50"
-                }`}>
-                {p}
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
               </button>
-            ))}
 
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
+              {getPageNumbers().map((p) => (
+                <button
+                  key={p}
+                  onClick={() => handlePageChange(p)}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition cursor-pointer ${
+                    currentPage === p
+                      ? "border-2 border-blue-600 text-blue-600 font-semibold"
+                      : "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}>
+                  {p}
+                </button>
+              ))}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

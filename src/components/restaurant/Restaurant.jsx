@@ -36,7 +36,7 @@ function DetailsModal({ restaurant: r, onClose }) {
                 "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400";
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
           <button
             onClick={onClose}
             className="absolute top-3 right-3 bg-white/80 hover:bg-white rounded-full p-1 transition">
