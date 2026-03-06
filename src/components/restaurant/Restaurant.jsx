@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MapPin,
   Star,
@@ -11,11 +11,179 @@ import {
   ChefHat,
   Info,
 } from "lucide-react";
-import { useRestaurant } from "../../context/Restaurantcontext";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  collection,
+  getDocs,
+  query,
+  limit,
+  startAfter,
+} from "firebase/firestore";
+import { db } from "../../Firebase";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;
 const STATUSES = ["all", "open", "closed"];
+const CACHE_KEY = ["restaurants"];
 
-// ── Details Modal ────────────────────────────────────────────────
+// ── Normalise Firestore doc ───────────────────────────────────────────────────
+const normalise = (doc) => {
+  const d = doc.data();
+  return {
+    id: doc.id,
+    name: d.kitchen_name || "Unnamed Kitchen",
+    ownerName: d.owner_name || "",
+    cuisine: d.cuisine || "",
+    specialties: Array.isArray(d.specialties) ? d.specialties : [],
+    description: d.description || "",
+    locationName: d.kitchen_address || "",
+    profileImage: d.profile_image || "https://i.pravatar.cc/150?img=1",
+    featuredDishImage:
+      d.featured_dish_image ||
+      "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400",
+    rating: parseFloat(d.rating) || 0,
+    priceForOne: d.price_for_one || "N/A",
+    deliveryTime: d.delivery_time || "N/A",
+    totalOrders: d.total_orders || 0,
+    isVeg: (d.food_preference || "").toLowerCase() === "veg",
+    status: d.isActive ? "open" : "closed",
+    openTime: d.open_time || "N/A",
+    closeTime: d.close_time || "N/A",
+    phone: d.phone || "N/A",
+    email: d.email || "N/A",
+    revenue: parseFloat(d.lifetime_earnings) || 0,
+  };
+};
+
+// ── useRestaurant hook ────────────────────────────────────────────────────────
+//
+//  Same dual-write pattern as Analytics / Support:
+//    getDocs → setRestaurants (re-render) + setQueryData (cache for re-visit)
+//
+//  Extra complexity vs Analytics: pagination.
+//  We cache { restaurants, hasMore } together so re-visit restores full list.
+//  lastDocRef is NOT cached (Firestore cursors can't be serialised) — instead
+//  we re-derive the cursor by re-fetching just to get it, or simply disable
+//  loadMore after a re-visit (safe: user can refresh if they want more).
+//
+function useRestaurant() {
+  const queryClient = useQueryClient();
+
+  // ── Seed from cache on re-visit, otherwise start empty ───────────────────
+  const cached = queryClient.getQueryData(CACHE_KEY);
+
+  const [restaurants, setRestaurants] = useState(
+    () => cached?.restaurants ?? [],
+  );
+  const [hasMore, setHasMore] = useState(() => cached?.hasMore ?? true);
+  const [loading, setLoading] = useState(() => !cached); // skip spinner on re-visit
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Cursor lives in a ref — only valid for the current mount, not cached
+  const lastDocRef = useRef(null);
+
+  // ── Initial fetch (skipped on re-visit because cache is non-null) ─────────
+  useEffect(() => {
+    if (cached) return; // cache hit → instant display, no Firestore read
+
+    const fetchFirst = async () => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "moms_kitchens"), limit(PAGE_SIZE)),
+        );
+        const rows = snap.docs.map(normalise);
+        const hasMore = snap.docs.length === PAGE_SIZE;
+
+        lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+
+        // ✅ Both: update local state (re-render) + cache (re-visit)
+        setRestaurants(rows);
+        setHasMore(hasMore);
+        queryClient.setQueryData(CACHE_KEY, { restaurants: rows, hasMore });
+      } catch (err) {
+        console.error("[useRestaurant]", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFirst();
+  }, [queryClient]);
+
+  // ── Load more (pagination) ────────────────────────────────────────────────
+  // After a re-visit the cursor ref is null (cursors can't survive routing).
+  // In that case we re-fetch from scratch to restore cursor, then append.
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      let snap;
+      if (lastDocRef.current) {
+        // Normal case — cursor is available
+        snap = await getDocs(
+          query(
+            collection(db, "moms_kitchens"),
+            startAfter(lastDocRef.current),
+            limit(PAGE_SIZE),
+          ),
+        );
+      } else {
+        // Re-visit case — cursor was lost, skip past what we already have
+        // by fetching offset = current restaurants count
+        // Firestore doesn't support numeric offset, so we fetch up to
+        // current length + PAGE_SIZE and slice the new ones
+        const currentCount = restaurants.length;
+        snap = await getDocs(
+          query(
+            collection(db, "moms_kitchens"),
+            limit(currentCount + PAGE_SIZE),
+          ),
+        );
+        // Only the new docs beyond what we already have
+        const newDocs = snap.docs.slice(currentCount);
+        const newRows = newDocs.map(normalise);
+        const more = newDocs.length === PAGE_SIZE;
+
+        lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+
+        const updated = [...restaurants, ...newRows];
+        setRestaurants(updated);
+        setHasMore(more);
+        queryClient.setQueryData(CACHE_KEY, {
+          restaurants: updated,
+          hasMore: more,
+        });
+        setLoadingMore(false);
+        return;
+      }
+
+      const newRows = snap.docs.map(normalise);
+      const more = snap.docs.length === PAGE_SIZE;
+
+      lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+
+      const updated = [...restaurants, ...newRows];
+
+      // ✅ Both: update local state (re-render) + cache (re-visit)
+      setRestaurants(updated);
+      setHasMore(more);
+      queryClient.setQueryData(CACHE_KEY, {
+        restaurants: updated,
+        hasMore: more,
+      });
+    } catch (err) {
+      console.error("[useRestaurant] loadMore:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, restaurants, queryClient]);
+
+  return { restaurants, loading, loadingMore, hasMore, loadMore, error };
+}
+
+// ── Details Modal ─────────────────────────────────────────────────────────────
 function DetailsModal({ restaurant: r, onClose }) {
   if (!r) return null;
   return (
@@ -25,8 +193,7 @@ function DetailsModal({ restaurant: r, onClose }) {
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-[fadeInUp_0.2s_ease]"
         onClick={(e) => e.stopPropagation()}>
-        {/* Header image */}
-        <div className="relative h-32 bg-gray-100 ">
+        <div className="relative h-32 bg-gray-100">
           <img
             src={r.featuredDishImage}
             alt={r.name}
@@ -36,13 +203,12 @@ function DetailsModal({ restaurant: r, onClose }) {
                 "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400";
             }}
           />
-          <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <button
             onClick={onClose}
             className="absolute top-3 right-3 bg-white/80 hover:bg-white rounded-full p-1 transition">
             <X size={16} className="text-gray-700" />
           </button>
-          {/* Avatar */}
           <div className="absolute -bottom-6 left-4">
             <img
               src={r.profileImage}
@@ -55,7 +221,6 @@ function DetailsModal({ restaurant: r, onClose }) {
           </div>
         </div>
 
-        {/* Body */}
         <div className="pt-8 px-4 pb-4">
           <div className="flex items-start justify-between mb-1">
             <div>
@@ -67,11 +232,7 @@ function DetailsModal({ restaurant: r, onClose }) {
               )}
             </div>
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                r.status === "open"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}>
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${r.status === "open" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
               {r.status}
             </span>
           </div>
@@ -154,10 +315,11 @@ function Detail({ icon, label, value, truncate }) {
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────
+// ── Main Page ─────────────────────────────────────────────────────────────────
 const Restaurant = () => {
   const { restaurants, loading, loadingMore, hasMore, loadMore, error } =
     useRestaurant();
+
   const [activeFilter, setActiveFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
@@ -176,7 +338,7 @@ const Restaurant = () => {
       ? restaurants.length
       : restaurants.filter((r) => r.status === s).length;
 
-  if (error)
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -185,6 +347,7 @@ const Restaurant = () => {
         </div>
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
@@ -358,7 +521,6 @@ const Restaurant = () => {
                           <Clock size={12} />
                           {r.openTime} – {r.closeTime}
                         </div>
-                        {/* ── Details Button ── */}
                         <button
                           onClick={() => setSelectedRestaurant(r)}
                           className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium transition">
@@ -392,13 +554,11 @@ const Restaurant = () => {
         )}
       </div>
 
-      {/* Details Modal */}
       <DetailsModal
         restaurant={selectedRestaurant}
         onClose={() => setSelectedRestaurant(null)}
       />
 
-      {/* Animation keyframe */}
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(16px); }

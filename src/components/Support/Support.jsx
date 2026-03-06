@@ -1,36 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { initializeApp, getApps } from "firebase/app";
 import { CircleX, Copy, Check } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  getFirestore,
   collection,
   query,
   orderBy,
   limit,
   startAfter,
   getDocs,
+  onSnapshot,
   getCountFromServer,
   doc,
   updateDoc,
   deleteDoc,
   where,
 } from "firebase/firestore";
-
-// ── Firebase config – replace with your own ──────────────────────────────────
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
-
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const db = getFirestore(app);
+import { db } from "../../Firebase";
 
 const PAGE_SIZE = 5;
-// FIX 4: 48 hours in milliseconds instead of max-5 cap
 const RESOLVED_TTL_MS = 48 * 60 * 60 * 1000;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,11 +52,18 @@ function mapDoc(docSnap) {
     datetime: formatTimestamp(d.time),
     _rawTime: d.time,
     _resolvedAt: d.resolvedAt ?? null,
-    _docRef: docSnap,
   };
 }
 
-// ── Status badge config ───────────────────────────────────────────────────────
+function buildBaseQuery(col, activeFilter) {
+  if (activeFilter === "Pending")
+    return query(col, where("status", "==", false), orderBy("time", "desc"));
+  if (activeFilter === "Resolved")
+    return query(col, where("status", "==", true), orderBy("time", "desc"));
+  return query(col, orderBy("time", "desc"));
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
 const statusConfig = {
   Pending: {
     dot: "bg-yellow-400",
@@ -84,7 +78,6 @@ const statusConfig = {
     border: "border-green-200",
   },
 };
-
 const filters = ["All Requests", "Pending", "Resolved"];
 
 function StatusBadge({ status }) {
@@ -98,7 +91,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Message Detail Modal ──────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 function MessageModal({ row, onClose, onResolve }) {
   const [resolving, setResolving] = useState(false);
   const [localResolved, setLocalResolved] = useState(false);
@@ -110,15 +103,14 @@ function MessageModal({ row, onClose, onResolve }) {
 
   useEffect(() => {
     if (!row) return;
-    function handleKey(e) {
+    const handleKey = (e) => {
       if (e.key === "Escape") onClose();
-    }
+    };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [row, onClose]);
 
   if (!row) return null;
-
   const isResolved = localResolved || row.status === "Resolved";
 
   async function handleResolve() {
@@ -137,12 +129,10 @@ function MessageModal({ row, onClose, onResolve }) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-
       <div
         className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm z-10"
         style={{ animation: "fadeInScale 0.15s ease-out" }}
         onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-gray-100">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-mono text-gray-400">#{row.id}</p>
@@ -164,8 +154,6 @@ function MessageModal({ row, onClose, onResolve }) {
             </svg>
           </button>
         </div>
-
-        {/* Meta row */}
         <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-50 flex-wrap">
           <StatusBadge status={isResolved ? "Resolved" : row.status} />
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
@@ -175,8 +163,6 @@ function MessageModal({ row, onClose, onResolve }) {
             {row.datetime}
           </span>
         </div>
-
-        {/* Message bubble */}
         <div className="px-5 py-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2.5">
             Customer Message
@@ -195,8 +181,6 @@ function MessageModal({ row, onClose, onResolve }) {
             </div>
           )}
         </div>
-
-        {/* Footer */}
         <div className="px-5 pb-5 flex items-center gap-2">
           {isResolved ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 text-xs font-semibold text-green-700">
@@ -218,7 +202,7 @@ function MessageModal({ row, onClose, onResolve }) {
             <button
               onClick={handleResolve}
               disabled={resolving}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm">
               {resolving ? (
                 <>
                   <svg
@@ -260,7 +244,6 @@ function MessageModal({ row, onClose, onResolve }) {
               )}
             </button>
           )}
-
           <button
             onClick={onClose}
             className="flex-1 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-600 transition">
@@ -268,18 +251,11 @@ function MessageModal({ row, onClose, onResolve }) {
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeInScale {
-          from { opacity: 0; transform: scale(0.95) translateY(6px); }
-          to   { opacity: 1; transform: scale(1)    translateY(0);   }
-        }
-      `}</style>
+      <style>{`@keyframes fadeInScale { from { opacity:0; transform:scale(0.95) translateY(6px);} to { opacity:1; transform:scale(1) translateY(0);}}`}</style>
     </div>
   );
 }
 
-// ── Details Button ────────────────────────────────────────────────────────────
 function DetailsBtn({ onClick }) {
   return (
     <button
@@ -298,7 +274,7 @@ function DetailsBtn({ onClick }) {
     </button>
   );
 }
-// ── Copy Email Button ─────────────────────────────────────────────────────────
+
 function CopyEmailBtn({ email }) {
   const [copied, setCopied] = useState(false);
   function handleCopy(e) {
@@ -322,7 +298,6 @@ function CopyEmailBtn({ email }) {
   );
 }
 
-// ── Mobile Card ───────────────────────────────────────────────────────────────
 function MobileCard({ row, onDetails }) {
   return (
     <div className="p-4 border-b border-gray-100 last:border-none hover:bg-gray-50 transition">
@@ -347,89 +322,104 @@ function MobileCard({ row, onDetails }) {
   );
 }
 
-// ── Build Firestore query for a given filter ──────────────────────────────────
-function buildBaseQuery(col, activeFilter) {
-  // FIX 2 (pagination) + FIX 4 (correct count per filter):
-  // Always add a status constraint when filter is not "All Requests"
-  if (activeFilter === "Pending") {
-    return query(col, where("status", "==", false), orderBy("time", "desc"));
-  } else if (activeFilter === "Resolved") {
-    return query(col, where("status", "==", true), orderBy("time", "desc"));
-  }
-  return query(col, orderBy("time", "desc"));
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function SupportRequests() {
-  // FIX 1: separate searchInput (typed) from search (committed on Enter or 400ms debounce)
+  const queryClient = useQueryClient();
+
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-
   const [activeFilter, setActiveFilter] = useState("All Requests");
   const [currentPage, setCurrentPage] = useState(1);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
-
-  // Cache keyed by "filter|page" so switching filters resets pagination correctly
-  const pagesCache = useRef({});
-  const currentPageRef = useRef(1);
-  const [pageData, setPageData] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // ── THE FIX: useState drives re-renders ───────────────────────────────────
+  // Root cause of the stuck-loading bug:
+  //   queryClient.getQueryData() is a plain synchronous read — NOT reactive.
+  //   When onSnapshot fires and calls setQueryData(), React has no idea the
+  //   cache changed, so the component stays on the loading spinner forever.
+  //
+  // Fix: useState holds the rows and count. onSnapshot updates useState
+  //   (triggers re-render) AND setQueryData (writes cache for re-visit).
+  //   On re-visit: useState initializer seeds from cache → instant display.
+  const pageKey = ["support-page", activeFilter, currentPage];
+  const countKey = ["support-count", activeFilter];
 
-  useEffect(() => {
-    currentPageRef.current = currentPage;
-  }, [currentPage]);
+  const [pageData, setPageData] = useState(
+    () => queryClient.getQueryData(pageKey) ?? [],
+  );
+  const [totalCount, setTotalCount] = useState(
+    () => queryClient.getQueryData(countKey) ?? 0,
+  );
 
-  // ── FIX 1: Debounce reduced to 400 ms ─────────────────────────────────────
+  // Reset local page data when filter or page changes
+  // (so stale data from previous filter doesn't flash while new data loads)
+  const prevFilterRef = useRef(activeFilter);
+  const prevPageRef = useRef(currentPage);
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 1500);
-    return () => clearTimeout(timer);
+    const filterChanged = prevFilterRef.current !== activeFilter;
+    const pageChanged = prevPageRef.current !== currentPage;
+    prevFilterRef.current = activeFilter;
+    prevPageRef.current = currentPage;
+
+    if (filterChanged || pageChanged) {
+      // Seed from cache if available (re-visit), else reset to empty (first visit)
+      const cached = queryClient.getQueryData(pageKey);
+      setPageData(cached ?? []);
+    }
+  }, [activeFilter, currentPage]);
+
+  const cursorsCache = useRef({});
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 1500);
+    return () => clearTimeout(t);
   }, [searchInput]);
 
-  // ── Reset page + cache when filter changes ─────────────────────────────────
+  // Reset page + cursors when filter changes
   useEffect(() => {
-    pagesCache.current = {};
+    cursorsCache.current = {};
     setCurrentPage(1);
   }, [activeFilter]);
 
-  // ── FIX 4: Fetch count scoped to active filter ─────────────────────────────
-  useEffect(() => {
-    async function fetchCount() {
+  // ── Count ─────────────────────────────────────────────────────────────────
+  const refreshCount = useCallback(
+    async (filter) => {
       try {
         const col = collection(db, "supportRequest");
-        let countQuery;
-        if (activeFilter === "Pending") {
-          countQuery = query(col, where("status", "==", false));
-        } else if (activeFilter === "Resolved") {
-          countQuery = query(col, where("status", "==", true));
-        } else {
-          countQuery = col;
-        }
-        const snap = await getCountFromServer(countQuery);
-        setTotalCount(snap.data().count);
+        let cq;
+        if (filter === "Pending") cq = query(col, where("status", "==", false));
+        else if (filter === "Resolved")
+          cq = query(col, where("status", "==", true));
+        else cq = col;
+        const snap = await getCountFromServer(cq);
+        const count = snap.data().count;
+        // ✅ Both: update local state (re-render) + cache (re-visit)
+        setTotalCount(count);
+        queryClient.setQueryData(["support-count", filter], count);
       } catch (e) {
         console.error("Count fetch failed:", e);
       }
+    },
+    [queryClient],
+  );
+
+  useEffect(() => {
+    const cached = queryClient.getQueryData(countKey);
+    if (cached != null) {
+      setTotalCount(cached); // seed local state from cache on re-visit
+    } else {
+      refreshCount(activeFilter);
     }
-    fetchCount();
   }, [activeFilter]);
 
-  // ── FIX 2: Fetch page – cursor-based, keyed by filter so pages don't bleed ─
+  // ── onSnapshot → feeds useState + TanStack cache ──────────────────────────
   useEffect(() => {
-    const cacheKey = `${activeFilter}|${currentPage}`;
+    let unsub = null;
 
-    if (pagesCache.current[cacheKey]) {
-      setPageData(pagesCache.current[cacheKey].rows);
-      return;
-    }
-
-    async function fetchPage() {
-      setLoading(true);
-      setError(null);
+    async function attachListener() {
       try {
         const col = collection(db, "supportRequest");
         const baseQ = buildBaseQuery(col, activeFilter);
@@ -439,107 +429,79 @@ export default function SupportRequests() {
           q = query(baseQ, limit(PAGE_SIZE));
         } else {
           const prevKey = `${activeFilter}|${currentPage - 1}`;
-          const prevPage = pagesCache.current[prevKey];
-          if (!prevPage) {
-            // FIX 2: re-fetch from page 1 forward automatically instead of
-            // showing an error. Reset to page 1 which will trigger this
-            // effect again via the currentPage state change.
+          const prevCursor = cursorsCache.current[prevKey];
+          if (!prevCursor) {
             setCurrentPage(1);
-            setLoading(false);
             return;
           }
-          q = query(baseQ, startAfter(prevPage.lastDoc), limit(PAGE_SIZE));
+          q = query(baseQ, startAfter(prevCursor), limit(PAGE_SIZE));
         }
 
-        const snapshot = await getDocs(q);
-        const rows = snapshot.docs.map(mapDoc);
-        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
-        pagesCache.current[cacheKey] = { rows, lastDoc };
-        setPageData(rows);
+        unsub = onSnapshot(
+          q,
+          (snapshot) => {
+            const rows = snapshot.docs.map(mapDoc);
+            const lastDoc = snapshot.docs[snapshot.docs.length - 1] ?? null;
+
+            cursorsCache.current[`${activeFilter}|${currentPage}`] = lastDoc;
+
+            // ✅ Both: update local state (triggers re-render) + cache (survives routing)
+            setPageData(rows);
+            queryClient.setQueryData(pageKey, rows);
+
+            refreshCount(activeFilter);
+          },
+          (err) => {
+            console.error("onSnapshot error:", err);
+            setError("Failed to load data. Check your connection.");
+          },
+        );
       } catch (e) {
-        console.error("Fetch error:", e);
-        setError("Failed to load data. Check your Firebase config.");
-      } finally {
-        setLoading(false);
+        console.error("Listener setup error:", e);
+        setError("Failed to load data.");
       }
     }
 
-    fetchPage();
+    attachListener();
+    return () => {
+      if (unsub) unsub();
+    };
   }, [currentPage, activeFilter]);
 
-  // ── FIX 4 (resolve): delete resolved docs older than 48 h ─────────────────
-  const handleResolve = useCallback(
-    async (row) => {
-      const now = new Date();
-      const resolvedAt = now.toISOString(); // store ISO string
+  const isLoading = pageData.length === 0 && !error;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-      // 1. Mark doc as resolved + record resolvedAt timestamp
-      const docRef = doc(db, "supportRequest", row.docId);
-      await updateDoc(docRef, { status: true, resolvedAt });
+  // ── Resolve ───────────────────────────────────────────────────────────────
+  const handleResolve = useCallback(async (row) => {
+    const now = new Date();
+    const resolvedAt = now.toISOString();
+    const docRef = doc(db, "supportRequest", row.docId);
+    await updateDoc(docRef, { status: true, resolvedAt });
 
-      // 2. Fetch ALL resolved docs to prune those older than 48 h
-      const resolvedSnap = await getDocs(
-        query(
-          collection(db, "supportRequest"),
-          where("status", "==", true),
-          orderBy("time", "asc"),
-        ),
-      );
-
-      const cutoff = new Date(now.getTime() - RESOLVED_TTL_MS);
-
-      const toDelete = resolvedSnap.docs.filter((d) => {
-        const ra = d.data().resolvedAt;
-        if (!ra) {
-          // Fallback: use the document's time field if resolvedAt not set
-          const t = d.data().time;
-          const docDate = t?.toDate ? t.toDate() : new Date(t);
-          return docDate < cutoff;
-        }
-        return new Date(ra) < cutoff;
-      });
-
-      if (toDelete.length > 0) {
-        await Promise.all(toDelete.map((d) => deleteDoc(d.ref)));
+    const resolvedSnap = await getDocs(
+      query(
+        collection(db, "supportRequest"),
+        where("status", "==", true),
+        orderBy("time", "asc"),
+      ),
+    );
+    const cutoff = new Date(now.getTime() - RESOLVED_TTL_MS);
+    const toDelete = resolvedSnap.docs.filter((d) => {
+      const ra = d.data().resolvedAt;
+      if (!ra) {
+        const t = d.data().time;
+        return (t?.toDate ? t.toDate() : new Date(t)) < cutoff;
       }
+      return new Date(ra) < cutoff;
+    });
+    if (toDelete.length > 0) {
+      await Promise.all(toDelete.map((d) => deleteDoc(d.ref)));
+    }
+    // onSnapshot fires automatically → setPageData → re-render
+  }, []);
 
-      // 3. Update local page data + cache optimistically
-      setPageData((prev) => {
-        const updated = prev.map((r) =>
-          r.docId === row.docId ? { ...r, status: "Resolved" } : r,
-        );
-        const ck = `${activeFilter}|${currentPageRef.current}`;
-        if (pagesCache.current[ck]) {
-          pagesCache.current[ck] = {
-            ...pagesCache.current[ck],
-            rows: updated,
-          };
-        }
-        return updated;
-      });
-
-      // 4. Refresh total count
-      try {
-        const col = collection(db, "supportRequest");
-        let countQuery;
-        if (activeFilter === "Pending") {
-          countQuery = query(col, where("status", "==", false));
-        } else if (activeFilter === "Resolved") {
-          countQuery = query(col, where("status", "==", true));
-        } else {
-          countQuery = col;
-        }
-        const countSnap = await getCountFromServer(countQuery);
-        setTotalCount(countSnap.data().count);
-      } catch (_) {}
-    },
-    [activeFilter],
-  );
-
-  // ── FIX 1 & 3: Search now queries Firestore for full-collection search ─────
-  // We keep client-side filtering only as a fast secondary pass for
-  // the currently-loaded page; for genuine cross-page search we re-fetch.
-  const [searchResults, setSearchResults] = useState(null); // null = not in search mode
+  // ── Search ────────────────────────────────────────────────────────────────
+  const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
   useEffect(() => {
@@ -547,27 +509,24 @@ export default function SupportRequests() {
       setSearchResults(null);
       return;
     }
-
-    // Full-collection search: fetch all docs (up to 200) and filter client-side.
-    // For production with large collections, replace with a search index (Algolia, Typesense, etc.)
     async function runSearch() {
       setSearchLoading(true);
       try {
         const col = collection(db, "supportRequest");
-        const baseQ = buildBaseQuery(col, activeFilter);
-        // Fetch a generous batch – adjust limit if collection is very large
-        const q = query(baseQ, limit(200));
+        const q = query(buildBaseQuery(col, activeFilter), limit(200));
         const snapshot = await getDocs(q);
-        const all = snapshot.docs.map(mapDoc);
         const lq = search.toLowerCase();
-        const matched = all.filter(
-          (row) =>
-            row.id.toLowerCase().includes(lq) ||
-            row.name.toLowerCase().includes(lq) ||
-            row.email.toLowerCase().includes(lq) ||
-            row.issue.toLowerCase().includes(lq),
+        setSearchResults(
+          snapshot.docs
+            .map(mapDoc)
+            .filter(
+              (r) =>
+                r.id.toLowerCase().includes(lq) ||
+                r.name.toLowerCase().includes(lq) ||
+                r.email.toLowerCase().includes(lq) ||
+                r.issue.toLowerCase().includes(lq),
+            ),
         );
-        setSearchResults(matched);
       } catch (e) {
         console.error("Search error:", e);
         setSearchResults([]);
@@ -575,14 +534,11 @@ export default function SupportRequests() {
         setSearchLoading(false);
       }
     }
-
     runSearch();
   }, [search, activeFilter]);
 
-  // Decide what rows to display
+  // ── Display ───────────────────────────────────────────────────────────────
   const displayRows = search ? (searchResults ?? []) : pageData;
-
-  // FIX 3: When in search mode, "Showing X of Y" reflects search hits
   const showingStart = search
     ? displayRows.length > 0
       ? 1
@@ -592,6 +548,7 @@ export default function SupportRequests() {
     ? displayRows.length
     : (currentPage - 1) * PAGE_SIZE + pageData.length;
   const showingOf = search ? displayRows.length : totalCount;
+  const isLoadingAny = (isLoading && !search) || searchLoading;
 
   function handlePageChange(p) {
     if (p < 1 || p > totalPages || p === currentPage) return;
@@ -606,8 +563,6 @@ export default function SupportRequests() {
     return pages;
   }
 
-  const isLoading = loading || searchLoading;
-
   return (
     <div className="min-h-screen bg-gray-100 px-3 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-12 xl:px-16 2xl:px-24 2xl:py-12">
       <MessageModal
@@ -616,7 +571,6 @@ export default function SupportRequests() {
         onResolve={handleResolve}
       />
 
-      {/* Page Header */}
       <div className="mb-5 sm:mb-7 xl:mb-8">
         <h1 className="text-xl sm:text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-900 tracking-tight">
           Support Requests
@@ -626,7 +580,6 @@ export default function SupportRequests() {
         </p>
       </div>
 
-      {/* Main Card */}
       <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Toolbar */}
         <div className="px-4 py-4 sm:px-5 sm:py-4 md:px-6 md:py-5 border-b border-gray-100 space-y-3 sm:space-y-0">
@@ -648,7 +601,6 @@ export default function SupportRequests() {
                 placeholder="Search by ID, name, email or issue…"
                 className="w-full pl-9 sm:pl-10 pr-8 py-2 sm:py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs sm:text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition"
               />
-              {/* FIX 1: spinner only shows during 400ms debounce */}
               {(searchInput !== search || searchLoading) && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg
@@ -692,11 +644,7 @@ export default function SupportRequests() {
                 <button
                   key={f}
                   onClick={() => setActiveFilter(f)}
-                  className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-medium transition cursor-pointer whitespace-nowrap ${
-                    activeFilter === f
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                  }`}>
+                  className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-medium transition cursor-pointer whitespace-nowrap ${activeFilter === f ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"}`}>
                   {f}
                 </button>
               ))}
@@ -712,11 +660,7 @@ export default function SupportRequests() {
                     setActiveFilter(f);
                     setMobileFilterOpen(false);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                    activeFilter === f
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}>
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${activeFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                   {f}
                 </button>
               ))}
@@ -724,7 +668,7 @@ export default function SupportRequests() {
           )}
         </div>
 
-        {/* Search mode banner */}
+        {/* Search banner */}
         {search && !searchLoading && (
           <div className="px-5 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
             <p className="text-xs text-blue-600 font-medium">
@@ -737,13 +681,13 @@ export default function SupportRequests() {
                 setSearchInput("");
                 setSearch("");
               }}
-              className="text-xs text-blue-400 hover:text-blue-600 transition underline"
+              className="text-xs text-blue-400 hover:text-blue-600 transition cursor-pointer"
             />
           </div>
         )}
 
         {/* Loading */}
-        {isLoading && (
+        {isLoadingAny && (
           <div className="flex items-center justify-center py-16">
             <svg
               className="w-6 h-6 text-blue-500 animate-spin"
@@ -767,12 +711,12 @@ export default function SupportRequests() {
           </div>
         )}
 
-        {error && !isLoading && (
+        {error && !isLoadingAny && (
           <p className="px-6 py-12 text-center text-sm text-red-400">{error}</p>
         )}
 
         {/* Mobile Cards */}
-        {!isLoading && !error && (
+        {!isLoadingAny && !error && (
           <div className="block md:hidden divide-y divide-gray-50">
             {displayRows.length > 0 ? (
               displayRows.map((row) => (
@@ -791,7 +735,7 @@ export default function SupportRequests() {
         )}
 
         {/* Desktop Table */}
-        {!isLoading && !error && (
+        {!isLoadingAny && !error && (
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -805,13 +749,11 @@ export default function SupportRequests() {
                   ].map((h, i) => (
                     <th
                       key={h}
-                      className={`px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest whitespace-nowrap ${
-                        i === 4 ? "hidden xl:table-cell" : ""
-                      }`}>
+                      className={`px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest whitespace-nowrap ${i === 4 ? "hidden xl:table-cell" : ""}`}>
                       {h}
                     </th>
                   ))}
-                  <th className="hidden lg:table-cell px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                  <th className="hidden lg:table-cell px-4 lg:px-6 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">
                     Email
                   </th>
                   <th className="px-4 lg:px-6 py-3.5" />
@@ -866,10 +808,9 @@ export default function SupportRequests() {
           </div>
         )}
 
-        {/* Pagination – hidden in search mode since all results are shown */}
+        {/* Pagination */}
         {!search && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
-            {/* FIX 3: count reflects active filter */}
             <p className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
               {displayRows.length > 0
                 ? `Showing ${showingStart}–${showingEnd} of ${showingOf} requests`
@@ -889,20 +830,14 @@ export default function SupportRequests() {
                   <path d="m15 18-6-6 6-6" />
                 </svg>
               </button>
-
               {getPageNumbers().map((p) => (
                 <button
                   key={p}
                   onClick={() => handlePageChange(p)}
-                  className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition cursor-pointer ${
-                    currentPage === p
-                      ? "border-2 border-blue-600 text-blue-600 font-semibold"
-                      : "border border-gray-200 text-gray-500 hover:bg-gray-50"
-                  }`}>
+                  className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition cursor-pointer ${currentPage === p ? "border-2 border-blue-600 text-blue-600 font-semibold" : "border border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
                   {p}
                 </button>
               ))}
-
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage >= totalPages}

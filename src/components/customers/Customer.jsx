@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Mail,
@@ -11,9 +11,29 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot,
+  limit,
+  startAfter,
+} from "firebase/firestore";
 import { db } from "../../Firebase";
-import { useCustomers } from "../../context/Customerscontext";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;
+const CACHE_KEY = ["customers"];
+const COLORS = [
+  "bg-orange-500",
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-indigo-500",
+];
 
 const STATUS_COLOR = {
   delivered: "bg-green-100 text-green-700",
@@ -22,6 +42,132 @@ const STATUS_COLOR = {
   preparing: "bg-yellow-100 text-yellow-700",
 };
 
+// ── Normalise Firestore doc ───────────────────────────────────────────────────
+const normaliseUser = (doc) => {
+  const d = doc.data();
+  const parts = (d.name || "U").split(" ");
+  const initials =
+    parts.length > 1
+      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      : parts[0][0].toUpperCase();
+
+  return {
+    id: doc.id,
+    name: d.name || "Unknown",
+    email: d.email || "No email",
+    phone: d.phone ? String(d.phone) : "No phone",
+    address: d.address || "No address",
+    photoURL: d.photoURL || null,
+    createdAt: d.createdAt || null,
+    updatedAt: d.updatedAt || null,
+    walletBalance: d.walletBalance || 0,
+    noOfOrders: d.noOfOrders || 0,
+    location: d.location || null,
+    initials,
+    color: COLORS[doc.id.charCodeAt(0) % COLORS.length],
+    _snapshot: doc, // kept for cursor pagination
+  };
+};
+
+// ── useCustomers hook ─────────────────────────────────────────────────────────
+//
+//  onSnapshot pattern (same as Support page):
+//    onSnapshot fires → setCustomers (re-render) + setQueryData (cache for re-visit)
+//
+//  Pagination: same cursor-lost strategy as Restaurant —
+//    cursor ref is null after re-visit, loadMore re-fetches via offset slice.
+//
+function useCustomers() {
+  const queryClient = useQueryClient();
+
+  const cached = queryClient.getQueryData(CACHE_KEY);
+
+  // ✅ Seed from cache on re-visit → instant display, no loading flash
+  const [customers, setCustomers] = useState(() => cached?.customers ?? []);
+  const [hasMore, setHasMore] = useState(() => cached?.hasMore ?? true);
+  const [loading, setLoading] = useState(() => !cached);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const lastDocRef = useRef(null); // cursor — not cached (can't serialise Firestore docs)
+
+  // ── onSnapshot on first 20 ────────────────────────────────────────────────
+  useEffect(() => {
+    // On re-visit: cache exists, skip listener setup until user triggers loadMore
+    // We still attach so real-time updates work if user stays on the page
+    const q = query(collection(db, "users"), limit(PAGE_SIZE));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs.map(normaliseUser);
+        const more = snapshot.docs.length === PAGE_SIZE;
+        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] ?? null;
+
+        // ✅ Both: update local state (re-render) + cache (survives routing)
+        setCustomers(list);
+        setHasMore(more);
+        setLoading(false);
+        queryClient.setQueryData(CACHE_KEY, { customers: list, hasMore: more });
+      },
+      (err) => {
+        console.error("[useCustomers]", err);
+        setLoading(false);
+      },
+    );
+
+    return () => unsub();
+  }, [queryClient]);
+
+  // ── loadMore ──────────────────────────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+
+    try {
+      let newDocs;
+
+      if (lastDocRef.current) {
+        // Normal case — cursor available
+        const snap = await getDocs(
+          query(
+            collection(db, "users"),
+            startAfter(lastDocRef.current),
+            limit(PAGE_SIZE),
+          ),
+        );
+        newDocs = snap.docs;
+        lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+      } else {
+        // Re-visit case — cursor was lost, fetch offset slice
+        const currentCount = customers.length;
+        const snap = await getDocs(
+          query(collection(db, "users"), limit(currentCount + PAGE_SIZE)),
+        );
+        newDocs = snap.docs.slice(currentCount);
+        lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+      }
+
+      const newRows = newDocs.map(normaliseUser);
+      const more = newDocs.length === PAGE_SIZE;
+      const updated = [...customers, ...newRows];
+
+      // ✅ Both: update local state (re-render) + cache (survives routing)
+      setCustomers(updated);
+      setHasMore(more);
+      queryClient.setQueryData(CACHE_KEY, {
+        customers: updated,
+        hasMore: more,
+      });
+    } catch (err) {
+      console.error("[useCustomers] loadMore:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, customers, queryClient]);
+
+  return { customers, loading, loadingMore, hasMore, loadMore };
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 const Customer = () => {
   const { customers, loading, loadingMore, hasMore, loadMore } = useCustomers();
 
@@ -58,7 +204,6 @@ const Customer = () => {
     setOrderHistory([]);
   };
 
-  // Filter runs on already-loaded docs — no extra Firestore reads
   const filtered = search.trim()
     ? customers.filter(
         (c) =>
@@ -216,7 +361,6 @@ const Customer = () => {
             </div>
           )}
 
-          {/* DB-level pagination: fetches next 20 from Firestore, never re-reads existing */}
           {hasMore && !search && (
             <div className="mt-8 text-center">
               <button

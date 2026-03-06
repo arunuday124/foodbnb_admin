@@ -13,12 +13,8 @@ import "./App.css";
 
 // ── Context Providers ────────────────────────────────────────────
 import { AppProvider, useAppContext } from "./context/AppContext";
-import { OrdersProvider } from "./context/OrdersContext";
-import { CustomersProvider } from "./context/Customerscontext.jsx";
-import { RestaurantProvider } from "./context/RestaurantContext";
-import { AnalyticsProvider } from "./context/AnalyticsContext";
+
 import { DeliveryProvider } from "./context/Deliverycontext.jsx";
-import { DashboardProvider } from "./context/Dashboardcontext.jsx";
 
 // ── Page Components ──────────────────────────────────────────────
 import Navbar from "./components/navbar/Navbar.jsx";
@@ -198,19 +194,9 @@ function App() {
   return (
     <Router>
       <AppProvider>
-        <DashboardProvider>
-          <OrdersProvider>
-            <CustomersProvider>
-              <RestaurantProvider>
-                <AnalyticsProvider>
-                  <DeliveryProvider>
-                    <AppRoutes />
-                  </DeliveryProvider>
-                </AnalyticsProvider>
-              </RestaurantProvider>
-            </CustomersProvider>
-          </OrdersProvider>
-        </DashboardProvider>
+        <DeliveryProvider>
+          <AppRoutes />
+        </DeliveryProvider>
       </AppProvider>
     </Router>
   );

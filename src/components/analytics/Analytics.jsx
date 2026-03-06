@@ -1,7 +1,190 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TrendingUp, TrendingDown, Users, ChevronRight } from "lucide-react";
-import { useAnalytics } from "../../context/Analyticscontext.jsx";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  collection,
+  getDocs,
+  query,
+  limit,
+  getCountFromServer,
+} from "firebase/firestore";
+import { db } from "../../Firebase";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+const ANALYTICS_KEY = ["analytics"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+// ── Fetch function (pure — no hooks) ─────────────────────────────────────────
+async function fetchAnalyticsData() {
+  // ── Orders: limit 200 for aggregate stats ──────────────────────────────
+  const ordersSnap = await getDocs(query(collection(db, "orders"), limit(200)));
+
+  const monthBuckets = Object.fromEntries(
+    MONTHS.map((m) => [m, { revenue: 0, count: 0 }]),
+  );
+  let cancelledCount = 0,
+    weeklyCount = 0,
+    monthlyCount = 0,
+    totalRevenue = 0;
+
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 86400000);
+  const oneMonthAgo = new Date(now.getTime() - 30 * 86400000);
+
+  ordersSnap.forEach((docSnap) => {
+    const d = docSnap.data();
+    const status = (d.order_status || "").toLowerCase();
+
+    if (status === "cancelled") cancelledCount++;
+
+    const date = d.createdAt?.toDate?.() ?? null;
+    if (date) {
+      if (date >= oneWeekAgo) weeklyCount++;
+      if (date >= oneMonthAgo) monthlyCount++;
+    }
+
+    if (status !== "delivered") return;
+
+    let total = 0;
+    (d.items || []).forEach((i) => {
+      total += (i.price || 0) * (i.qnt || 1);
+    });
+    totalRevenue += total;
+
+    if (date) {
+      const key = MONTHS[date.getMonth()];
+      monthBuckets[key].revenue += total;
+      monthBuckets[key].count += 1;
+    }
+  });
+
+  const maxRev = Math.max(
+    ...Object.values(monthBuckets).map((b) => b.revenue),
+    1,
+  );
+  const revenueData = MONTHS.map((month) => ({
+    month,
+    revenue: `₹${Math.round(monthBuckets[month].revenue).toLocaleString()}`,
+    orders: `${monthBuckets[month].count} orders`,
+    percentage: (monthBuckets[month].revenue / maxRev) * 100,
+  }));
+
+  const orderFrequency = [
+    {
+      label: "Weekly",
+      count: weeklyCount,
+      percentage: Math.min((weeklyCount / 50) * 100, 100),
+      color: "bg-purple-500",
+    },
+    {
+      label: "Monthly",
+      count: monthlyCount,
+      percentage: Math.min((monthlyCount / 50) * 100, 100),
+      color: "bg-blue-500",
+    },
+  ];
+
+  // ── Total customers: 1 Firestore read via getCountFromServer ───────────
+  const countSnap = await getCountFromServer(collection(db, "users"));
+  const totalCustomers = countSnap.data().count;
+
+  // ── Users with location for heatmap: limit 200 ─────────────────────────
+  const usersSnap = await getDocs(query(collection(db, "users"), limit(200)));
+
+  let firstTimeCustomers = 0,
+    firstTimeOrders = 0;
+  const usersWithOrders = [];
+
+  usersSnap.forEach((docSnap) => {
+    const d = docSnap.data();
+    const n = d.noOfOrders || 0;
+    if (n === 0) firstTimeCustomers++;
+    if (n === 1) firstTimeOrders++;
+    if (n > 0 && d.location) {
+      usersWithOrders.push({
+        id: docSnap.id,
+        name: d.name || "Unknown",
+        noOfOrders: n,
+        location: d.location, // GeoPoint — .latitude / .longitude
+      });
+    }
+  });
+
+  return {
+    revenueData,
+    totalRevenue: Math.round(totalRevenue),
+    cancelledOrders: cancelledCount,
+    orderFrequency,
+    totalCustomers, // accurate — from getCountFromServer
+    firstTimeCustomers, // approximate — based on 200-user sample
+    firstTimeOrders,
+    usersWithOrders,
+  };
+}
+
+// ── useAnalytics hook ─────────────────────────────────────────────────────────
+//
+//  THE BUG THIS FIXES:
+//    queryClient.getQueryData() is a plain synchronous read — NOT reactive.
+//    When setQueryData() is called after fetch completes, React has no idea
+//    the cache changed, so the component stays stuck on the loading spinner
+//    forever until something else triggers a re-render (e.g. visiting another
+//    page and coming back, which is exactly the symptom you saw).
+//
+//  THE FIX:
+//    Track loading/data in local useState so React re-renders when fetch
+//    completes. Still write to TanStack cache for the cache-hit benefit on
+//    re-visits (second visit skips fetch entirely, reads from cache instantly).
+function useAnalytics() {
+  const queryClient = useQueryClient();
+
+  // Local state drives re-renders — this is what was missing
+  const [analyticsData, setAnalyticsData] = useState(
+    // Seed from cache immediately if data already exists (re-visit case)
+    () => queryClient.getQueryData(ANALYTICS_KEY) ?? null,
+  );
+  const [isLoading, setIsLoading] = useState(
+    () => queryClient.getQueryData(ANALYTICS_KEY) == null,
+  );
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Cache-first: already seeded in useState initializer above, skip fetch
+    const cached = queryClient.getQueryData(ANALYTICS_KEY);
+    if (cached != null) return;
+
+    fetchAnalyticsData()
+      .then((data) => {
+        // Write to TanStack cache — next visit will hit this and skip fetch
+        queryClient.setQueryData(ANALYTICS_KEY, data);
+        // ✅ Also update local state — THIS triggers the re-render
+        setAnalyticsData(data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("[useAnalytics]", err);
+        setError("Failed to load analytics data.");
+        setIsLoading(false);
+      });
+  }, [queryClient]);
+
+  return { analyticsData, isLoading, error };
+}
+
+// ── Animated number counter ───────────────────────────────────────────────────
 const AnimatedNumber = ({ value }) => {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -17,7 +200,7 @@ const AnimatedNumber = ({ value }) => {
   return <span>{count.toLocaleString()}</span>;
 };
 
-// Leaflet map — concentric hotspot circles + SVG pin with initials for each customer
+// ── Leaflet heatmap ───────────────────────────────────────────────────────────
 const CustomerMap = ({ users }) => {
   const container = useRef(null);
   const map = useRef(null);
@@ -67,26 +250,33 @@ const CustomerMap = ({ users }) => {
       const maxOrders = Math.max(...coords.map((c) => c.noOfOrders), 1);
       const minOrders = Math.min(...coords.map((c) => c.noOfOrders), 1);
 
-      coords.forEach((u) => {
-        // Opacity based on order count
-        let opacity;
-        if (maxOrders === minOrders) {
-          opacity = 0.6;
-        } else {
-          opacity =
-            0.2 + ((u.noOfOrders - minOrders) / (maxOrders - minOrders)) * 0.6;
-        }
+      const pinColors = [
+        "#ef4444",
+        "#3b82f6",
+        "#10b981",
+        "#f59e0b",
+        "#8b5cf6",
+        "#ec4899",
+        "#06b6d4",
+        "#f97316",
+        "#84cc16",
+        "#6366f1",
+      ];
 
+      coords.forEach((u, idx) => {
+        const opacity =
+          maxOrders === minOrders
+            ? 0.6
+            : 0.2 +
+              ((u.noOfOrders - minOrders) / (maxOrders - minOrders)) * 0.6;
         const radius = 20 + (u.noOfOrders / maxOrders) * 80;
 
-        // 1. Three concentric hotspot circles (outer → inner, increasing opacity)
-        const layers = [
-          { radius: radius, opacity: opacity * 0.3 },
+        // Concentric hotspot circles
+        [
+          { radius, opacity: opacity * 0.3 },
           { radius: radius * 0.7, opacity: opacity * 0.6 },
           { radius: radius * 0.4, opacity: opacity * 0.9 },
-        ];
-
-        layers.forEach((layer) => {
+        ].forEach((layer) => {
           window.L.circleMarker([u.lat, u.lng], {
             radius: layer.radius,
             fillColor: "#FF5A5F",
@@ -97,45 +287,31 @@ const CustomerMap = ({ users }) => {
           }).addTo(map.current);
         });
 
-        // 2. Main clickable hotspot circle
+        // Main clickable circle
         window.L.circleMarker([u.lat, u.lng], {
           radius: radius * 0.5,
           fillColor: "#FF5A5F",
           color: "#CC4449",
           weight: 2,
-          opacity: opacity,
+          opacity,
           fillOpacity: opacity * 0.7,
         })
           .bindPopup(
             `<div style="padding:10px;text-align:center;">
-              <strong style="font-size:13px;">${u.name}</strong>
-              <p style="font-size:11px;color:#666;margin-top:4px;">Orders: ${u.noOfOrders}</p>
-            </div>`,
+            <strong style="font-size:13px;">${u.name}</strong>
+            <p style="font-size:11px;color:#666;margin-top:4px;">Orders: ${u.noOfOrders}</p>
+          </div>`,
           )
           .addTo(map.current);
 
-        // 3. SVG pin with user initials on top
+        // SVG pin with initials
         const initials = (u.name || "?")
           .split(" ")
           .map((n) => n[0])
           .join("")
           .toUpperCase()
           .slice(0, 2);
-
-        const pinColors = [
-          "#ef4444",
-          "#3b82f6",
-          "#10b981",
-          "#f59e0b",
-          "#8b5cf6",
-          "#ec4899",
-          "#06b6d4",
-          "#f97316",
-          "#84cc16",
-          "#6366f1",
-        ];
-        const pinColor = pinColors[coords.indexOf(u) % pinColors.length];
-
+        const pinColor = pinColors[idx % pinColors.length];
         const pinHTML = `
           <div style="position:relative;width:60px;height:70px;display:flex;align-items:center;justify-content:center;">
             <svg viewBox="0 0 32 40" width="40" height="50" xmlns="http://www.w3.org/2000/svg">
@@ -143,32 +319,31 @@ const CustomerMap = ({ users }) => {
                 fill="${pinColor}" stroke="white" stroke-width="2"/>
               <circle cx="16" cy="14" r="6" fill="white"/>
             </svg>
-            <div style="position:absolute;top:8px;font-size:9px;font-weight:700;color:${pinColor};letter-spacing:-0.5px;">
-              ${initials}
-            </div>
-          </div>
-        `;
+            <div style="position:absolute;top:8px;font-size:9px;font-weight:700;color:${pinColor};letter-spacing:-0.5px;">${initials}</div>
+          </div>`;
 
-        const pinIcon = window.L.divIcon({
-          html: pinHTML,
-          iconSize: [60, 70],
-          iconAnchor: [30, 70],
-          popupAnchor: [0, -70],
-          className: "",
-        });
-
-        window.L.marker([u.lat, u.lng], { icon: pinIcon, zIndexOffset: 200 })
+        window.L.marker([u.lat, u.lng], {
+          icon: window.L.divIcon({
+            html: pinHTML,
+            iconSize: [60, 70],
+            iconAnchor: [30, 70],
+            popupAnchor: [0, -70],
+            className: "",
+          }),
+          zIndexOffset: 200,
+        })
           .bindPopup(
             `<div style="padding:10px;min-width:140px;">
-              <strong style="font-size:13px;">${u.name}</strong>
-              <p style="font-size:11px;color:#555;margin-top:4px;">Orders: <b>${u.noOfOrders}</b></p>
-              <p style="font-size:10px;color:#999;margin-top:2px;">📍 ${u.lat.toFixed(4)}, ${u.lng.toFixed(4)}</p>
-            </div>`,
+            <strong style="font-size:13px;">${u.name}</strong>
+            <p style="font-size:11px;color:#555;margin-top:4px;">Orders: <b>${u.noOfOrders}</b></p>
+            <p style="font-size:10px;color:#999;margin-top:2px;">📍 ${u.lat.toFixed(4)}, ${u.lng.toFixed(4)}</p>
+          </div>`,
           )
           .addTo(map.current);
       });
     };
     document.body.appendChild(script);
+
     return () => {
       if (map.current) {
         map.current.remove();
@@ -186,22 +361,32 @@ const CustomerMap = ({ users }) => {
   );
 };
 
+// ── Analytics page ────────────────────────────────────────────────────────────
 const Analytics = () => {
-  const { analyticsData, loading } = useAnalytics();
+  // ✅ No context import — hook reads directly from TanStack cache
+  const { analyticsData, isLoading, error } = useAnalytics();
   const [page, setPage] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!loading) setLoaded(true);
-  }, [loading]);
+    if (!isLoading) setLoaded(true);
+  }, [isLoading]);
 
-  if (loading || !analyticsData) {
+  if (isLoading) {
     return (
       <div className="min-h-full bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
           <p className="mt-4 text-gray-500">Loading analytics...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-full bg-gray-50 flex items-center justify-center">
+        <p className="text-sm text-red-400">{error}</p>
       </div>
     );
   }
